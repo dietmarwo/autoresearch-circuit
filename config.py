@@ -25,7 +25,8 @@ EDGE_NAMES = [
 NUM_EDGE_SLOTS = len(EDGE_INDEX_MAP)  # 9
 
 # ── Simulation ────────────────────────────────────────────
-SIM_T_END = 200.0                # simulation duration
+SIM_T_END = 200.0                # training simulation duration
+VALID_T_END = 400.0              # longer holdout validation duration
 SIM_N_STEPS = 1000               # output time points
 SIM_ALGORITHM = "NumPySSA"
 # NOTE: for model.run() we pass the solver class, not the string.
@@ -44,6 +45,8 @@ HILL_COEFF_BOUNDS = (1.0, 5.0)
 # ── Evaluator ─────────────────────────────────────────────
 INNER_N_SEEDS = 2                # SSA seeds during inner optimisation
 VALID_N_SEEDS = 5                # SSA seeds for final validation
+TRAIN_SEED_OFFSET = 42           # optimisation seeds
+VALID_SEED_OFFSET = 10_042       # disjoint holdout seeds
 MIN_PEAKS = 3                    # minimum peaks to count as oscillating
 PEAK_COUNT_FULL_CREDIT = 8       # peak count where count_score saturates
 PEAK_HEIGHT_FACTOR = 0.3         # fraction of std above mean for peak detection
@@ -62,10 +65,11 @@ W_PERSISTENCE = 0.20
 # Multi-gene bonus
 MULTI_GENE_THRESHOLD = 0.3      # gene scores above this count as oscillating
 MULTI_GENE_BONUS_MAX = 0.1      # maximum multi-gene bonus
+GENERALIZATION_GAP_PENALTY = 0.5  # rank_score = val_score - penalty * |train - val|
 
 # ── Inner Optimizer (fcmaes) ──────────────────────────────
-INNER_MAX_EVALS = 2000           # evaluations per retry
-INNER_NUM_RETRIES = 8            # parallel retries (coordinated)
+INNER_MAX_EVALS = 100           # evaluations per retry
+INNER_NUM_RETRIES = 16          # parallel retries (coordinated)
 PENALTY_VALUE = 1e6              # returned on simulation failure
 
 # ── Outer Loop ────────────────────────────────────────────
@@ -75,7 +79,14 @@ MAX_MUTATION_TRIES = 20          # attempts to mutate into a valid topology
 
 # ── Agentic Loop ──────────────────────────────────────────
 AGENTIC_SEARCH_N = 30
+LLM_BACKEND = "auto"            # auto / openai / claude / gemini / minimax
+LLM_BASE_URL = None             # OpenAI-compatible endpoint; None -> provider default
 LLM_MODEL = "claude-sonnet-4-20250514"
-LLM_MAX_TOKENS = 500
-LLM_HISTORY_TOP_K = 20          # max past results shown to LLM
+LLM_TEMPERATURE = 1.0
+LLM_THINKING_EFFORT = "none"    # none / high
+LLM_MAX_TOKENS = 8192
+LLM_MAX_CONTEXT_EXCHANGES = 2   # lightweight prior user/assistant turns kept
+LLM_TOP_K = 10                  # best results shown in the regenerated prompt
+LLM_RECENT_K = 10               # recent results shown in the regenerated prompt
+LLM_EXCHANGE_MAX_CHARS = 2000   # truncate remembered assistant summaries
 LLM_MAX_CONSECUTIVE_FAILURES = 5

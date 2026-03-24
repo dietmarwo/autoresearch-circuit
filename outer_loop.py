@@ -5,7 +5,7 @@ Strategy 1: Random sampling (baseline)
 Strategy 2: Evolutionary (1+1)-ES mutation search
 
 Both use the same inner-optimizer interface:
-  optimize_topology(topology) → {best_score, best_params, ...}
+  optimize_topology(topology) → {best_score, train_score, validation_score, ...}
 """
 
 import time
@@ -55,8 +55,20 @@ def run_random_search(
             iteration=i,
             wall_time=result["wall_time"],
             strategy="random",
+            train_score=result["train_score"],
+            train_raw_score=result["train_raw_score"],
+            train_period=result["train_period"],
+            validation_score=result["validation_score"],
+            validation_raw_score=result["validation_raw_score"],
+            validation_period=result["validation_period"],
+            generalization_gap=result["generalization_gap"],
         ))
-        print(f"  → score = {result['best_score']:.4f}")
+        print(
+            f"  → rank = {result['best_score']:.4f}  "
+            f"(train={result['train_score']:.4f}  "
+            f"val={result['validation_score']:.4f}  "
+            f"gap={result['generalization_gap']:.4f})"
+        )
         if (i + 1) % 10 == 0:
             print(f"\n{archive.summary()}\n")
 
@@ -98,11 +110,24 @@ def run_evolutionary_search(
 
     archive = Archive()
     archive.add(SearchResult(
-        current, current_score, result["best_params"], 0,
-        result["wall_time"], "evo",
+        topology=current,
+        score=current_score,
+        params=result["best_params"],
+        iteration=0,
+        wall_time=result["wall_time"],
+        strategy="evo",
+        train_score=result["train_score"],
+        train_raw_score=result["train_raw_score"],
+        train_period=result["train_period"],
+        validation_score=result["validation_score"],
+        validation_raw_score=result["validation_raw_score"],
+        validation_period=result["validation_period"],
+        generalization_gap=result["generalization_gap"],
     ))
     print(f"[Evo 0/{n_iterations}] Start: {current.to_label()}  "
-          f"score={current_score:.4f}")
+          f"rank={current_score:.4f}  "
+          f"(train={result['train_score']:.4f}  "
+          f"val={result['validation_score']:.4f})")
 
     total_t0 = time.perf_counter()
 
@@ -129,10 +154,27 @@ def run_evolutionary_search(
         )
         score = result["best_score"]
         archive.add(SearchResult(
-            candidate, score, result["best_params"], i,
-            result["wall_time"], "evo",
+            topology=candidate,
+            score=score,
+            params=result["best_params"],
+            iteration=i,
+            wall_time=result["wall_time"],
+            strategy="evo",
+            train_score=result["train_score"],
+            train_raw_score=result["train_raw_score"],
+            train_period=result["train_period"],
+            validation_score=result["validation_score"],
+            validation_raw_score=result["validation_raw_score"],
+            validation_period=result["validation_period"],
+            generalization_gap=result["generalization_gap"],
         ))
-        print(f"  → score = {score:.4f}  (current best = {current_score:.4f})")
+        print(
+            f"  → rank = {score:.4f}  "
+            f"(train={result['train_score']:.4f}  "
+            f"val={result['validation_score']:.4f}  "
+            f"gap={result['generalization_gap']:.4f})  "
+            f"(current best = {current_score:.4f})"
+        )
 
         if score > current_score:
             current = candidate

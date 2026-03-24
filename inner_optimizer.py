@@ -13,13 +13,19 @@ Key fcmaes features exploited:
 
 import time
 import numpy as np
+np.set_printoptions(legacy='1.25')
 
 from fcmaes import retry
 from fcmaes.optimizer import Bite_cpp
 
+import sys
+from loguru import logger
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="INFO")
+
 from grammar import Topology
 from model_builder import build_param_bounds
-from evaluator import evaluate_topology
+from evaluator import evaluate_topology_details
 import config as cfg
 
 
@@ -34,8 +40,14 @@ def make_objective(topology: Topology,
     """
     def objective(x: np.ndarray) -> float:
         try:
-            score = evaluate_topology(topology, x, n_seeds=n_seeds, t_end=t_end)
-            return -score  # fcmaes minimises
+            metrics = evaluate_topology_details(
+                topology,
+                x,
+                n_seeds=n_seeds,
+                t_end=t_end,
+                seed_offset=cfg.TRAIN_SEED_OFFSET,
+            )
+            return -metrics["raw_score"]  # fcmaes minimises
         except Exception:
             return cfg.PENALTY_VALUE
     return objective
@@ -61,8 +73,13 @@ def optimize_topology(topology: Topology,
 
     Returns:
         dict with keys:
-          best_score   (float, positive — higher is better)
+          best_score   (float, validation-based ranking score)
           best_params  (np.ndarray)
+          best_raw_score (float, raw training score optimised by fcmaes)
+          train_score  (float, reported score on optimisation seeds)
+          validation_score (float, reported holdout score on longer simulations)
+          generalization_gap (float, abs(train_score - validation_score))
+          train_period / validation_period (float, median oscillation period)
           num_evals    (int, total evaluations across all retries)
           topology     (Topology)
           wall_time    (float, seconds)
@@ -82,14 +99,54 @@ def optimize_topology(topology: Topology,
 
     wall = time.perf_counter() - t0
 
-    best_score = -result.fun  # un-negate
+    best_params = result.x.copy()
+    best_raw_score = -result.fun  # un-negate raw objective
+    train_metrics = evaluate_topology_details(
+        topology,
+        best_params,
+        n_seeds=n_seeds,
+        t_end=cfg.SIM_T_END,
+        seed_offset=cfg.TRAIN_SEED_OFFSET,
+    )
+    validation_metrics = evaluate_topology_details(
+        topology,
+        best_params,
+        n_seeds=cfg.VALID_N_SEEDS,
+        t_end=cfg.VALID_T_END,
+        seed_offset=cfg.VALID_SEED_OFFSET,
+    )
+    generalization_gap = abs(train_metrics["score"] - validation_metrics["score"])
+    best_score = (
+        validation_metrics["score"]
+        - cfg.GENERALIZATION_GAP_PENALTY * generalization_gap
+    )
+
     if verbose:
-        print(f"    fcmaes: score={best_score:.4f}  "
-              f"evals={max_evals * n_retries}  wall={wall:.1f}s")
+        period_str = (
+            f"{validation_metrics['period']:.1f}"
+            if validation_metrics["period"] > 0.0 else "n/a"
+        )
+        print(
+            f"    fcmaes: raw={best_raw_score:.4f}  "
+            f"train={train_metrics['score']:.4f}  "
+            f"val={validation_metrics['score']:.4f}  "
+            f"gap={generalization_gap:.4f}  "
+            f"rank={best_score:.4f}  "
+            f"period={period_str}  "
+            f"evals={max_evals * n_retries}  wall={wall:.1f}s"
+        )
 
     return {
         "best_score": best_score,
-        "best_params": result.x.copy(),
+        "best_params": best_params,
+        "best_raw_score": best_raw_score,
+        "train_score": train_metrics["score"],
+        "train_raw_score": train_metrics["raw_score"],
+        "train_period": train_metrics["period"],
+        "validation_score": validation_metrics["score"],
+        "validation_raw_score": validation_metrics["raw_score"],
+        "validation_period": validation_metrics["period"],
+        "generalization_gap": generalization_gap,
         "num_evals": max_evals * n_retries,
         "topology": topology,
         "wall_time": wall,
@@ -116,4 +173,7 @@ if __name__ == "__main__":
             n_seeds=2,
             verbose=True,
         )
-        print(f"  BEST SCORE: {res['best_score']:.4f}")
+        print(
+            f"  BEST RANK: {res['best_score']:.4f}  "
+            f"(train={res['train_score']:.4f}  val={res['validation_score']:.4f})"
+        )

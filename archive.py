@@ -19,14 +19,35 @@ from grammar import Topology
 
 @dataclass
 class SearchResult:
-    """One evaluated topology."""
+    """One evaluated topology, ranked by validation-aware score."""
     topology: Topology
     score: float
     params: Optional[np.ndarray] = None
     iteration: int = 0
     wall_time: float = 0.0
     strategy: str = ""
+    train_score: Optional[float] = None
+    train_raw_score: Optional[float] = None
+    train_period: Optional[float] = None
+    validation_score: Optional[float] = None
+    validation_raw_score: Optional[float] = None
+    validation_period: Optional[float] = None
+    generalization_gap: Optional[float] = None
     timestamp: float = field(default_factory=time.time)
+
+    def __setstate__(self, state):
+        """Backfill newly added fields when loading older pickles."""
+        self.__dict__.update(state)
+        for name in (
+            "train_score",
+            "train_raw_score",
+            "train_period",
+            "validation_score",
+            "validation_raw_score",
+            "validation_period",
+            "generalization_gap",
+        ):
+            self.__dict__.setdefault(name, None)
 
 
 class Archive:
@@ -61,7 +82,7 @@ class Archive:
         if not self.results:
             return {"n": 0}
         scores = [r.score for r in self.results]
-        return {
+        stats = {
             "n": len(scores),
             "best": max(scores),
             "mean": float(np.mean(scores)),
@@ -69,6 +90,21 @@ class Archive:
             "std": float(np.std(scores)),
             "nonzero": sum(1 for s in scores if s > 0.01),
         }
+        validation_scores = [r.validation_score for r in self.results
+                             if r.validation_score is not None]
+        if validation_scores:
+            stats["best_validation"] = max(validation_scores)
+            stats["mean_validation"] = float(np.mean(validation_scores))
+        train_scores = [r.train_score for r in self.results
+                        if r.train_score is not None]
+        if train_scores:
+            stats["best_train"] = max(train_scores)
+            stats["mean_train"] = float(np.mean(train_scores))
+        gaps = [r.generalization_gap for r in self.results
+                if r.generalization_gap is not None]
+        if gaps:
+            stats["mean_gap"] = float(np.mean(gaps))
+        return stats
 
     # ── Display ───────────────────────────────────────────
 
@@ -78,15 +114,29 @@ class Archive:
         stats = self.score_stats()
         lines = [
             f"Evaluated {stats['n']} topologies  "
-            f"(best={stats['best']:.4f}  mean={stats['mean']:.4f}  "
+            f"(best_rank={stats['best']:.4f}  mean_rank={stats['mean']:.4f}  "
             f"nonzero={stats['nonzero']})",
         ]
-        for i, r in enumerate(self.top_k(top)):
+        if "best_validation" in stats:
             lines.append(
-                f"  #{i+1}: score={r.score:.4f}  "
-                f"edges={r.topology.num_active_edges}  "
-                f"[{r.topology.to_label()}]"
+                f"Validation: best={stats['best_validation']:.4f}  "
+                f"mean={stats['mean_validation']:.4f}"
             )
+        if "mean_gap" in stats:
+            lines.append(f"Generalization gap: mean={stats['mean_gap']:.4f}")
+        for i, r in enumerate(self.top_k(top)):
+            parts = [f"  #{i+1}: rank={r.score:.4f}"]
+            if r.validation_score is not None:
+                parts.append(f"val={r.validation_score:.4f}")
+            if r.train_score is not None:
+                parts.append(f"train={r.train_score:.4f}")
+            if r.generalization_gap is not None:
+                parts.append(f"gap={r.generalization_gap:.4f}")
+            if r.validation_period is not None and r.validation_period > 0.0:
+                parts.append(f"period={r.validation_period:.1f}")
+            parts.append(f"edges={r.topology.num_active_edges}")
+            parts.append(f"[{r.topology.to_label()}]")
+            lines.append("  ".join(parts))
         return "\n".join(lines)
 
     # ── Serialisation ─────────────────────────────────────
@@ -108,6 +158,14 @@ class Archive:
                 "edges": list(r.topology.edges),
                 "label": r.topology.to_label(),
                 "score": r.score,
+                "rank_score": r.score,
+                "train_score": r.train_score,
+                "train_raw_score": r.train_raw_score,
+                "train_period": r.train_period,
+                "validation_score": r.validation_score,
+                "validation_raw_score": r.validation_raw_score,
+                "validation_period": r.validation_period,
+                "generalization_gap": r.generalization_gap,
                 "iteration": r.iteration,
                 "strategy": r.strategy,
                 "wall_time": r.wall_time,
