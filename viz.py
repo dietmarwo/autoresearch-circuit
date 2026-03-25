@@ -32,7 +32,7 @@ def plot_topology_trace(topology: Topology, params: np.ndarray,
 
     fig, ax = plt.subplots(figsize=(10, 4))
     time_arr = np.array(result["time"])
-    colors = ["#2196F3", "#FF5722", "#4CAF50"]
+    colors = plt.cm.tab10(np.linspace(0.0, 1.0, max(cfg.NUM_GENES, 3)))
 
     for gene, color in zip(cfg.GENES, colors):
         vals = np.array(result[gene])
@@ -129,8 +129,7 @@ def plot_top_scores(archive: Archive, top_k: int = 10, save_path: str = None):
 def plot_network_diagram(topology: Topology, save_path: str = None,
                          title: str = None):
     """
-    Draw a simple 3-node regulatory network diagram.
-    Nodes are placed in a triangle; edges are coloured arrows.
+    Draw a regulatory network diagram with genes on a circle.
     """
     fig, ax = plt.subplots(figsize=(5, 5))
     ax.set_xlim(-1.5, 1.5)
@@ -138,12 +137,11 @@ def plot_network_diagram(topology: Topology, save_path: str = None,
     ax.set_aspect("equal")
     ax.axis("off")
 
-    # Node positions (equilateral triangle)
-    positions = {
-        "A": np.array([0.0, 1.0]),
-        "B": np.array([-0.87, -0.5]),
-        "C": np.array([0.87, -0.5]),
-    }
+    radius = 1.0
+    positions = {}
+    for idx, gene in enumerate(cfg.GENES):
+        angle = (np.pi / 2.0) - (2.0 * np.pi * idx / cfg.NUM_GENES)
+        positions[gene] = np.array([radius * np.cos(angle), radius * np.sin(angle)])
 
     # Draw nodes
     for gene, pos in positions.items():
@@ -166,8 +164,9 @@ def plot_network_diagram(topology: Topology, save_path: str = None,
             pos = positions[src_gene]
             color = "#4CAF50" if val == 1 else "#F44336"
             symbol = "→" if val == 1 else "⊣"
+            direction = pos / (np.linalg.norm(pos) + 1e-9)
             ax.annotate(
-                symbol, xy=(pos[0] + 0.15, pos[1] + 0.25),
+                symbol, xy=(pos[0] + 0.20 * direction[0], pos[1] + 0.20 * direction[1]),
                 fontsize=14, color=color, fontweight="bold",
             )
             continue

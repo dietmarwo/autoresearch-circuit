@@ -3,16 +3,26 @@
 A split-brain automated design loop for stochastic biochemical circuits,
 showcasing `fcmaes` as the inner optimization engine.
 
+This project is closely related to the CircuiTree paper
+["Designing biochemical circuits with tree search"](https://doi.org/10.1101/2025.01.27.635147)
+by Pranav S. Bhamidipati and Matthew Thomson.
+
 ```
 Outer loop proposes topology → fcmaes optimizes parameters → GillesPy2 evaluates phenotype
 ```
+
+The project now supports two experiment presets:
+
+- `oscillator3`: the original 3-gene traveling-wave oscillator benchmark
+- `robust5`: a 5-gene oscillator benchmark that rewards single-gene knockout robustness
+  plus partial knockdown and local parameter-jitter robustness
 
 ## Architecture
 
 ```
 ┌───────────────────────────────────┐
 │       OUTER LOOP (Agentic)        │   Proposes circuit topology
-│  random / evolutionary / LLM      │   from bounded 3-gene grammar
+│  random / evolutionary / LLM      │   from bounded experiment grammar
 └──────────────┬────────────────────┘
                │ topology T
                ▼
@@ -24,7 +34,7 @@ Outer loop proposes topology → fcmaes optimizes parameters → GillesPy2 evalu
                ▼
 ┌───────────────────────────────────┐
 │       INNER LOOP (fcmaes)         │   Optimizes continuous kinetic params
-│  Bite_cpp with parallel retry     │   Handles noisy stochastic objectives
+│  DE + pooled evaluator / Bite_cpp │   Handles noisy stochastic objectives
 └──────────────┬────────────────────┘
                │ best params x*
                ▼
@@ -40,17 +50,194 @@ Outer loop proposes topology → fcmaes optimizes parameters → GillesPy2 evalu
 pip install fcmaes gillespy2 numpy scipy matplotlib
 
 # Random search (baseline) — 30 topologies
-python run_search.py --strategy random --n 30
+python run_search.py --experiment oscillator3 --strategy random --n 30
 
 # Evolutionary (1+1)-ES — 50 iterations
-python run_search.py --strategy evo --n 50
+python run_search.py --experiment oscillator3 --strategy evo --n 50
 
 # LLM-guided agentic search (requires ANTHROPIC_API_KEY)
-python run_search.py --strategy agentic --n 20
+python run_search.py --experiment oscillator3 --strategy agentic --n 20
+
+# Blind benchmark mode: no canonical motif hints, bootstrap before exploitation
+python run_search.py --experiment oscillator3 --strategy agentic --agentic-mode blind --n 20
+
+# Guided mode: bootstrap, then alternate exploration/exploitation
+python run_search.py --experiment oscillator3 --strategy agentic --agentic-mode guided --n 20
+
+# Guided MiniMax run
+python run_search.py --experiment oscillator3 --strategy agentic --agentic-mode guided --model MiniMax-M2.7 --llm-backend minimax
+
+# 5-gene robust oscillator benchmark
+python run_search.py --experiment robust5 --strategy agentic --agentic-mode blind --model MiniMax-M2.7 --llm-backend minimax --n 12
 
 # Quick test (small budget, fast)
-python run_search.py --strategy random --n 5 --inner-evals 200 --retries 2
+python run_search.py --experiment oscillator3 --strategy random --n 5 --inner-evals 200 --workers 2
 ```
+
+## Experiments
+
+`oscillator3`
+
+- 3 genes, 9 edge slots
+- objective: coherent traveling-wave oscillator
+- best for reproducing known minimal motifs like repressilators and Goodwin-like loops
+
+`robust5`
+
+- 5 genes, 25 edge slots, 5 to 15 active interactions
+- objective: weighted scalar score combining
+  - intact-network oscillation quality
+  - lower-quartile single-gene knockout score across all knockout scenarios
+  - fraction of knockouts that remain strongly oscillatory
+  - lower-quartile single-gene partial-knockdown score
+  - lower-quartile score under local parameter jitter around the fcmaes optimum
+- uses a longer validation pass than `oscillator3` to separate near-ties more aggressively
+- best for testing whether higher-complexity robust designs move beyond the standard 3-gene prior
+
+The inner loop remains unchanged conceptually in both presets: `fcmaes` still solves a single scalar optimization problem for each fixed topology. For `robust5`, the training objective stays cheaper than the validation objective; the more expensive knockdown and parameter-jitter checks are used mainly to rank optimized topologies, not to blow up every inner-loop function call.
+
+## Relation To CircuiTree
+
+This repository is inspired by the CircuiTree paper, but it asks a different question.
+
+CircuiTree asks:
+
+- Which topologies are robust under random parameter draws?
+
+This repository asks:
+
+- Which topologies can be tuned well with `fcmaes`, and which of those tuned designs remain stable under stress?
+
+That distinction matters. CircuiTree is primarily about topology discovery and motif inference. This repository is primarily an application example for `fcmaes`, so the inner loop is the main character and the outer loop is the structural search wrapper around it.
+
+### How CircuiTree Evaluates A Topology
+
+CircuiTree does **not** run an inner continuous optimizer like DE, CMA-ES, or BiteOpt for each topology.
+
+Instead, the paper evaluates oscillation with a binary autocorrelation-based reward:
+
+- simulate one stochastic trajectory with randomly sampled parameters and initial conditions
+- compute the normalized autocorrelation function (ACF)
+- find the lowest interior minimum `ACFmin`
+- assign reward `1` if `ACFmin < -0.4`, else `0`
+
+For the 3-node benchmark, the paper first enumerates the full design space and estimates
+`Q(s)`, the fraction of random parameter draws that oscillate for topology `s`. During the MCTS benchmark itself, each reward is then drawn as a Bernoulli sample with success probability `Q(s)` rather than by running a fresh inner optimizer.
+
+For the 5-node search, exact enumeration is no longer feasible, so parallel MCTS samples fresh random parameter sets during search and still uses the same yes/no oscillation reward. Fault tolerance is then assessed by repeating this procedure under random deletions, and the paper later studies partial knockdown and parameter heterogeneity on selected top circuits.
+
+### Why The Paper Uses That Inner Evaluation
+
+That choice is deliberate.
+
+- It measures **parameter-volume robustness**, not best-case tunability.
+- It keeps the MCTS reward aligned with the paper's scientific question: which topologies work often under random parameterization?
+- For the 3-node case, it gives a clean ground truth for recall, precision, and motif-discovery comparisons against enumeration.
+- It avoids conflating topology quality with the behavior of a separate inner optimizer.
+
+This is why CircuiTree is well suited to statements such as "motif X is overrepresented among robust topologies" or "5-node fault tolerance emerges from motif multiplexing."
+
+### What This Repository Does Instead
+
+This project keeps the outer structural search idea, but changes the inner evaluation so that each topology gets a serious continuous optimization pass with `fcmaes`.
+
+For a fixed topology, we optimize a **continuous** scalar objective rather than a binary oscillates/does-not-oscillate reward. The base trace score combines:
+
+- detrending to reject monotonic growth/decay
+- prominence-based peak detection
+- trough-depth and amplitude checks
+- peak-spacing and amplitude regularity
+- persistence over time
+- an autocorrelation-based periodicity term
+- multi-gene coherence and, for `oscillator3`, phase separation
+
+This continuous score is essential because `fcmaes` needs a graded signal. A binary reward would create huge flat regions and make the inner optimization much less informative.
+
+### How We Push Toward Stable Structures
+
+To avoid selecting topologies that only look good at one lucky operating point, the final ranking is stricter than the raw training objective.
+
+We do that in several ways:
+
+- optimize a raw continuous score during the inner search
+- validate on longer simulations and more stochastic seeds
+- penalize the train/validation gap
+- in `robust5`, score the optimized topology under:
+  - intact conditions
+  - single-gene knockout scenarios
+  - partial single-gene knockdown scenarios
+  - local multiplicative parameter jitter around the optimized point
+- aggregate stress scenarios with a lower quantile instead of only the mean or median
+
+So "stable" here does not mean "works for a random draw of parameters" in the CircuiTree sense. It means:
+
+- there exists a tuned operating point found by `fcmaes`
+- that point generalizes across stochastic seeds and a longer horizon
+- and it survives structured perturbations instead of collapsing immediately
+
+### Why This Approach Works
+
+This is not a reproduction of the CircuiTree robustness definition. It is a different, more engineering-oriented experiment, and that is intentional.
+
+The motivation is:
+
+- synthetic-circuit design in practice usually includes parameter tuning
+- `fcmaes` should be judged on whether it can find good operating points for hard stochastic models
+- a topology should not win only because one random simulation happened to oscillate
+- a tuned design is more convincing if it remains good under seed variation, knockouts, knockdowns, and local parameter perturbations
+
+In that sense, this repository studies **designability** rather than pure parameter-volume robustness. CircuiTree asks which motifs are intrinsically robust under random parameterization. This repository asks how far a powerful inner optimizer can push a topology, and whether the resulting design is still stable in a neighborhood of the optimum.
+
+## Agentic Modes
+
+The agentic loop now supports two distinct operating modes:
+
+- `blind`: benchmark-oriented mode. Removes canonical motif hints from the system prompt, hides score-based anchoring during the bootstrap phase, and is the better choice when you want to test whether the outer loop can discover strong topologies without being led to the repressilator family.
+- `guided`: application-oriented mode. Keeps biological priors available, uses a short no-score bootstrap phase, then alternates between `explore` and `exploit` turns. Exploration turns enforce a minimum Hamming distance from the current niche-elite archive family to keep the search from orbiting one basin too tightly.
+
+Useful options:
+
+- `--agentic-mode blind|guided`: choose the prompting/search policy
+- `--bootstrap-iters N`: number of initial diverse proposals before showing the current best
+- `--explore-min-hamming K`: novelty threshold enforced during bootstrap and exploration turns
+
+Examples:
+
+```bash
+# Blind benchmark: closest to an MCTS-style "start from scratch" initialization,
+# while still proposing complete topologies instead of partial assemblies
+python run_search.py --experiment oscillator3 --strategy agentic --agentic-mode blind --bootstrap-iters 6 --n 30
+
+# Guided search with stronger novelty pressure
+python run_search.py --experiment oscillator3 --strategy agentic --agentic-mode guided --bootstrap-iters 4 --explore-min-hamming 4 --n 30
+
+# 5-gene robust search: no motif hints, larger exploration radius
+python run_search.py --experiment robust5 --strategy agentic --agentic-mode blind --bootstrap-iters 6 --explore-min-hamming 5 --n 12
+```
+
+## Niche Archive
+
+The outer loop now keeps two complementary memories:
+
+- a global leaderboard of the best overall topologies
+- a niche archive that preserves the best representative for each structural family
+
+The niche descriptor is intentionally structural and lightweight:
+
+- active edge count
+- activation vs inhibition count
+- number of self-regulatory edges
+- coarse core motif flags such as `repressilator`, `toggle`, `mixed_cycle`, `goodwin`, or `other`
+
+This is deliberately kept in the outer loop only. The inner `fcmaes` optimizer stays single-objective and structure-agnostic: it still only tunes continuous parameters for one fixed topology at a time.
+
+During agentic search, the LLM now sees:
+
+- best overall topologies
+- best niche elites
+- recent evaluations
+
+That makes the archive more like a lightweight MAP-Elites-style memory for structural diversity, without changing the inner optimizer into a multi-objective or niche-aware search.
 
 ## File Structure
 
@@ -60,7 +247,7 @@ python run_search.py --strategy random --n 5 --inner-evals 200 --retries 2
 | `grammar.py` | 160 | 3-gene topology grammar, encoding, mutation, canonical motifs |
 | `model_builder.py` | 184 | Topology + params → GillesPy2 model with Hill-function propensities |
 | `evaluator.py` | 228 | Oscillation quality scoring: detrending, peak/trough analysis, multi-seed |
-| `inner_optimizer.py` | 119 | fcmaes wrapper: Bite_cpp with coordinated parallel retry |
+| `inner_optimizer.py` | 119 | fcmaes wrapper: DE with pooled evaluator, Bite_cpp fallback |
 | `outer_loop.py` | 163 | Random search + evolutionary (1+1)-ES strategies |
 | `agentic_loop.py` | 266 | LLM-guided topology proposal with structured feedback |
 | `archive.py` | 121 | Results storage, ranking, JSON/pickle serialisation |
@@ -69,11 +256,14 @@ python run_search.py --strategy random --n 5 --inner-evals 200 --retries 2
 
 ## Topology Grammar
 
-- **3 genes** (A, B, C), each with production + degradation
-- **9 edge slots**: 3 self-regulation + 6 cross-regulation
+- Experiment-dependent gene set:
+  - `oscillator3`: 3 genes, 9 edge slots
+  - `robust5`: 5 genes, 25 edge slots
 - Each edge: absent (0) / activation (1) / inhibition (2)
-- Constraints: 2–6 active edges, no isolated nodes
-- **12,024 valid topologies** in the grammar
+- Constraints:
+  - `oscillator3`: 2–6 active edges, no isolated nodes
+  - `robust5`: 5–15 active edges, no isolated nodes
+- The 3-gene experiment can be enumerated exactly; the 5-gene experiment is sampled directly because the raw space is too large for flat enumeration.
 
 ## Evaluator Design
 
@@ -83,7 +273,16 @@ The oscillation scorer avoids common false positives:
 2. **Prominence-based peak detection** — rejects stochastic noise bumps
 3. **Trough depth validation** — requires real valleys between peaks
 4. **Amplitude-to-mean ratio** — rejects weak fluctuations on high baselines
-5. **Multi-seed median** — resists stochastic outliers
+5. **Autocorrelation periodicity** — rewards repeated self-similarity at one and two inferred periods
+6. **Multi-seed median** — resists stochastic outliers
+
+For the 5-gene robust experiment, the scalar objective also includes:
+
+1. **Intact-network oscillation score**
+2. **Single-gene knockout score** — lower quartile across knockout scenarios, so one weak deletion hurts
+3. **Knockout survival rate** — fraction of knockouts still above a stricter robustness threshold
+4. **Single-gene knockdown score** — lower quartile across partial knockdown scenarios
+5. **Local parameter robustness** — lower quartile across multiplicative parameter jitters around the optimized point
 
 ## Known Canonical Motifs
 

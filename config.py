@@ -5,88 +5,255 @@ All tunable hyperparameters live here so they can be adjusted
 without touching module internals.
 """
 
-# ── Topology Grammar ──────────────────────────────────────
-GENES = ["A", "B", "C"]
-NUM_GENES = len(GENES)
-EDGE_VALUES = (0, 1, 2)          # absent / activation / inhibition
-MIN_ACTIVE_EDGES = 2
-MAX_ACTIVE_EDGES = 6
+from __future__ import annotations
 
-# Edge index semantics (source, target)
-EDGE_INDEX_MAP = [
-    (0, 0), (1, 1), (2, 2),     # self-regulation
-    (0, 1), (0, 2),             # A regulates others
-    (1, 0), (1, 2),             # B regulates others
-    (2, 0), (2, 1),             # C regulates others
-]
-EDGE_NAMES = [
-    f"{GENES[s]}->{GENES[t]}" for s, t in EDGE_INDEX_MAP
-]
-NUM_EDGE_SLOTS = len(EDGE_INDEX_MAP)  # 9
-
-# ── Simulation ────────────────────────────────────────────
-SIM_T_END = 200.0                # training simulation duration
-VALID_T_END = 400.0              # longer holdout validation duration
-SIM_N_STEPS = 1000               # output time points
-SIM_ALGORITHM = "NumPySSA"
-# NOTE: for model.run() we pass the solver class, not the string.
-# The string is kept for logging only.
 import gillespy2 as _gp2
-SIM_SOLVER = _gp2.NumPySSASolver
-INITIAL_COPIES = 10              # initial molecule count per species
-HILL_K = 20.0                    # fixed half-max in Hill functions
 
-# ── Parameter Bounds ──────────────────────────────────────
+
+def _build_edge_index_map(genes: list[str]) -> list[tuple[int, int]]:
+    """Build a deterministic edge ordering: self edges first, then all cross edges."""
+    mapping: list[tuple[int, int]] = []
+    for idx in range(len(genes)):
+        mapping.append((idx, idx))
+    for src in range(len(genes)):
+        for tgt in range(len(genes)):
+            if src != tgt:
+                mapping.append((src, tgt))
+    return mapping
+
+
+def _set_topology_space(genes: list[str], min_edges: int, max_edges: int) -> None:
+    """Update all topology-space globals for the active experiment."""
+    global GENES, NUM_GENES, MIN_ACTIVE_EDGES, MAX_ACTIVE_EDGES
+    global EDGE_INDEX_MAP, EDGE_NAMES, NUM_EDGE_SLOTS
+
+    GENES = list(genes)
+    NUM_GENES = len(GENES)
+    MIN_ACTIVE_EDGES = int(min_edges)
+    MAX_ACTIVE_EDGES = int(max_edges)
+    EDGE_INDEX_MAP = _build_edge_index_map(GENES)
+    EDGE_NAMES = [f"{GENES[src]}->{GENES[tgt]}" for src, tgt in EDGE_INDEX_MAP]
+    NUM_EDGE_SLOTS = len(EDGE_INDEX_MAP)
+
+
+# ── Experiment presets ───────────────────────────────────
+AVAILABLE_EXPERIMENTS = ("oscillator3", "robust5")
+DEFAULT_EXPERIMENT = "oscillator3"
+EXPERIMENT = DEFAULT_EXPERIMENT
+
+# ── Shared topology/scoring constants ────────────────────
+EDGE_VALUES = (0, 1, 2)          # absent / activation / inhibition
+SIM_ALGORITHM = "NumPySSA"
+SIM_SOLVER = _gp2.NumPySSASolver
+INITIAL_COPIES = 10
+HILL_K = 20.0
+TOPOLOGY_ENUMERATION_MAX_RAW_SPACE = 2_000_000
+MAX_RANDOM_TOPOLOGY_TRIES = 5000
+
+# ── Parameter Bounds ─────────────────────────────────────
 BASAL_PRODUCTION_BOUNDS = (0.1, 50.0)
 DEGRADATION_RATE_BOUNDS = (0.005, 1.0)
 REG_STRENGTH_BOUNDS = (0.1, 100.0)
 HILL_COEFF_BOUNDS = (1.0, 5.0)
 
-# ── Evaluator ─────────────────────────────────────────────
-INNER_N_SEEDS = 2                # SSA seeds during inner optimisation
-VALID_N_SEEDS = 5                # SSA seeds for final validation
-TRAIN_SEED_OFFSET = 42           # optimisation seeds
-VALID_SEED_OFFSET = 10_042       # disjoint holdout seeds
-MIN_PEAKS = 3                    # minimum peaks to count as oscillating
-PEAK_COUNT_FULL_CREDIT = 8       # peak count where count_score saturates
-PEAK_HEIGHT_FACTOR = 0.3         # fraction of std above mean for peak detection
-PEAK_MIN_DISTANCE_FRAC = 20      # min distance = len(trace) / this
-FLAT_STD_THRESHOLD = 1.0         # std below this → flat trace
-MIN_OSC_AMPLITUDE = 8.0          # minimum absolute peak-to-trough amplitude (molecules)
-MIN_REL_AMPLITUDE = 0.15         # minimum peak-to-trough / signal_range ratio
-MIN_AMP_TO_MEAN = 0.20           # minimum oscillation amplitude / mean_signal ratio
+# ── Per-gene oscillation detector ────────────────────────
+MIN_PEAKS = 3
+PEAK_COUNT_FULL_CREDIT = 8
+PEAK_HEIGHT_FACTOR = 0.3
+PEAK_MIN_DISTANCE_FRAC = 20
+FLAT_STD_THRESHOLD = 1.0
+MIN_OSC_AMPLITUDE = 8.0
+MIN_REL_AMPLITUDE = 0.15
+MIN_AMP_TO_MEAN = 0.20
+W_SPACING_REGULARITY = 0.25
+W_AMPLITUDE_REGULARITY = 0.20
+W_PEAK_COUNT = 0.20
+W_PERSISTENCE = 0.15
+W_AUTOCORRELATION = 0.20
 
-# Score component weights (sum to 1.0)
-W_SPACING_REGULARITY = 0.30
-W_AMPLITUDE_REGULARITY = 0.25
-W_PEAK_COUNT = 0.25
-W_PERSISTENCE = 0.20
+# ── Trace aggregation defaults (overwritten per experiment) ──
+PHENOTYPE_MODE = "traveling_wave_3"
+MULTI_GENE_THRESHOLD = 0.3
+MULTI_GENE_BONUS_MAX = 0.1
+COHERENCE_GENE_THRESHOLD = 0.55
+COHERENCE_TARGET_GENES = 3
+TRACE_TARGET_PARTICIPANTS = 3
+TRACE_BEST_GENE_WEIGHT = 0.45
+TRACE_PARTICIPATION_WEIGHT = 0.25
+TRACE_PERIOD_COHERENCE_WEIGHT = 0.15
+TRACE_PHASE_COHERENCE_WEIGHT = 0.15
+TRACE_SUPPORT_WEIGHT = 0.0
 
-# Multi-gene bonus
-MULTI_GENE_THRESHOLD = 0.3      # gene scores above this count as oscillating
-MULTI_GENE_BONUS_MAX = 0.1      # maximum multi-gene bonus
+# ── Robustness objective defaults (overwritten per experiment) ──
+ROBUST_FULL_WEIGHT = 1.0
+ROBUST_KNOCKOUT_WEIGHT = 0.0
+ROBUST_KNOCKOUT_PASS_WEIGHT = 0.0
+ROBUST_KNOCKDOWN_WEIGHT = 0.0
+ROBUST_PARAM_PERTURB_WEIGHT = 0.0
+TRAIN_KNOCKOUT_SAMPLES = 0       # 0 -> no knockout term during optimisation
+VALID_KNOCKOUT_SAMPLES = 0       # -1 -> all single-gene knockouts
+TRAIN_KNOCKDOWN_SAMPLES = 0      # 0 -> no partial knockdown term
+VALID_KNOCKDOWN_SAMPLES = 0      # -1 -> all single-gene knockdowns
+KNOCKDOWN_FACTOR = 0.35          # remaining production / initial copy fraction
+TRAIN_PARAM_PERTURB_SAMPLES = 0
+VALID_PARAM_PERTURB_SAMPLES = 0
+PARAM_PERTURB_SIGMA = 0.20       # multiplicative log-normal jitter around x*
+ROBUST_SCENARIO_AGGREGATION_QUANTILE = 0.50
+ROBUST_SUCCESS_THRESHOLD = 0.55
+
+# ── Validation-aware ranking ─────────────────────────────
 GENERALIZATION_GAP_PENALTY = 0.5  # rank_score = val_score - penalty * |train - val|
 
-# ── Inner Optimizer (fcmaes) ──────────────────────────────
-INNER_MAX_EVALS = 100           # evaluations per retry
-INNER_NUM_RETRIES = 16          # parallel retries (coordinated)
-PENALTY_VALUE = 1e6              # returned on simulation failure
-
-# ── Outer Loop ────────────────────────────────────────────
-RANDOM_SEARCH_N = 30             # topologies to sample in random search
-EVO_SEARCH_N = 80                # iterations for evolutionary search
-MAX_MUTATION_TRIES = 20          # attempts to mutate into a valid topology
-
-# ── Agentic Loop ──────────────────────────────────────────
+# ── Agentic defaults that may change with experiment ────
 AGENTIC_SEARCH_N = 30
+AGENTIC_MODE = "guided"         # blind / guided
+AGENTIC_BOOTSTRAP_ITERS = 4
+AGENTIC_EXPLORE_MIN_HAMMING = 3
+AGENTIC_DIVERSITY_TOP_K = 5
+LLM_TOP_K = 10
+LLM_NICHE_K = 6
+LLM_RECENT_K = 10
+
+# ── LLM backend defaults ─────────────────────────────────
 LLM_BACKEND = "auto"            # auto / openai / claude / gemini / minimax
 LLM_BASE_URL = None             # OpenAI-compatible endpoint; None -> provider default
 LLM_MODEL = "claude-sonnet-4-20250514"
 LLM_TEMPERATURE = 1.0
 LLM_THINKING_EFFORT = "none"    # none / high
 LLM_MAX_TOKENS = 8192
-LLM_MAX_CONTEXT_EXCHANGES = 2   # lightweight prior user/assistant turns kept
-LLM_TOP_K = 10                  # best results shown in the regenerated prompt
-LLM_RECENT_K = 10               # recent results shown in the regenerated prompt
-LLM_EXCHANGE_MAX_CHARS = 2000   # truncate remembered assistant summaries
+LLM_MAX_CONTEXT_EXCHANGES = 2
+LLM_EXCHANGE_MAX_CHARS = 2000
 LLM_MAX_CONSECUTIVE_FAILURES = 5
+
+
+def set_experiment(name: str) -> str:
+    """Switch all experiment-specific globals in place."""
+    global EXPERIMENT, SIM_T_END, VALID_T_END, SIM_N_STEPS
+    global INNER_N_SEEDS, VALID_N_SEEDS, TRAIN_SEED_OFFSET, VALID_SEED_OFFSET
+    global RANDOM_SEARCH_N, EVO_SEARCH_N, MAX_MUTATION_TRIES
+    global INNER_MAX_EVALS, INNER_NUM_WORKERS, PENALTY_VALUE
+    global PHENOTYPE_MODE, COHERENCE_GENE_THRESHOLD, COHERENCE_TARGET_GENES
+    global TRACE_TARGET_PARTICIPANTS, TRACE_BEST_GENE_WEIGHT
+    global TRACE_PARTICIPATION_WEIGHT, TRACE_PERIOD_COHERENCE_WEIGHT
+    global TRACE_PHASE_COHERENCE_WEIGHT, TRACE_SUPPORT_WEIGHT
+    global ROBUST_FULL_WEIGHT, ROBUST_KNOCKOUT_WEIGHT
+    global ROBUST_KNOCKOUT_PASS_WEIGHT, ROBUST_KNOCKDOWN_WEIGHT
+    global ROBUST_PARAM_PERTURB_WEIGHT, TRAIN_KNOCKOUT_SAMPLES
+    global VALID_KNOCKOUT_SAMPLES, TRAIN_KNOCKDOWN_SAMPLES
+    global VALID_KNOCKDOWN_SAMPLES, KNOCKDOWN_FACTOR
+    global TRAIN_PARAM_PERTURB_SAMPLES, VALID_PARAM_PERTURB_SAMPLES
+    global PARAM_PERTURB_SIGMA, ROBUST_SCENARIO_AGGREGATION_QUANTILE
+    global ROBUST_SUCCESS_THRESHOLD
+    global AGENTIC_SEARCH_N, AGENTIC_BOOTSTRAP_ITERS
+    global AGENTIC_EXPLORE_MIN_HAMMING, AGENTIC_DIVERSITY_TOP_K
+    global LLM_TOP_K, LLM_NICHE_K, LLM_RECENT_K
+
+    normalized = (name or DEFAULT_EXPERIMENT).strip().lower()
+    if normalized not in AVAILABLE_EXPERIMENTS:
+        raise ValueError(
+            f"Unknown experiment '{name}'. Available: {', '.join(AVAILABLE_EXPERIMENTS)}"
+        )
+
+    EXPERIMENT = normalized
+    MAX_MUTATION_TRIES = 20
+    PENALTY_VALUE = 1e6
+
+    if normalized == "oscillator3":
+        _set_topology_space(["A", "B", "C"], min_edges=2, max_edges=6)
+        SIM_T_END = 200.0
+        VALID_T_END = 400.0
+        SIM_N_STEPS = 1000
+        INNER_N_SEEDS = 2
+        VALID_N_SEEDS = 5
+        TRAIN_SEED_OFFSET = 42
+        VALID_SEED_OFFSET = 10_042
+        RANDOM_SEARCH_N = 30
+        EVO_SEARCH_N = 80
+        INNER_MAX_EVALS = 480
+        INNER_NUM_WORKERS = 16
+        AGENTIC_SEARCH_N = 30
+        AGENTIC_BOOTSTRAP_ITERS = 4
+        AGENTIC_EXPLORE_MIN_HAMMING = 3
+        AGENTIC_DIVERSITY_TOP_K = 5
+        LLM_TOP_K = 10
+        LLM_NICHE_K = 6
+        LLM_RECENT_K = 10
+
+        PHENOTYPE_MODE = "traveling_wave_3"
+        COHERENCE_GENE_THRESHOLD = 0.55
+        COHERENCE_TARGET_GENES = 3
+        TRACE_TARGET_PARTICIPANTS = 3
+        TRACE_BEST_GENE_WEIGHT = 0.45
+        TRACE_PARTICIPATION_WEIGHT = 0.25
+        TRACE_PERIOD_COHERENCE_WEIGHT = 0.15
+        TRACE_PHASE_COHERENCE_WEIGHT = 0.15
+        TRACE_SUPPORT_WEIGHT = 0.0
+
+        ROBUST_FULL_WEIGHT = 1.0
+        ROBUST_KNOCKOUT_WEIGHT = 0.0
+        ROBUST_KNOCKOUT_PASS_WEIGHT = 0.0
+        ROBUST_KNOCKDOWN_WEIGHT = 0.0
+        ROBUST_PARAM_PERTURB_WEIGHT = 0.0
+        TRAIN_KNOCKOUT_SAMPLES = 0
+        VALID_KNOCKOUT_SAMPLES = 0
+        TRAIN_KNOCKDOWN_SAMPLES = 0
+        VALID_KNOCKDOWN_SAMPLES = 0
+        KNOCKDOWN_FACTOR = 0.35
+        TRAIN_PARAM_PERTURB_SAMPLES = 0
+        VALID_PARAM_PERTURB_SAMPLES = 0
+        PARAM_PERTURB_SIGMA = 0.20
+        ROBUST_SCENARIO_AGGREGATION_QUANTILE = 0.50
+        ROBUST_SUCCESS_THRESHOLD = 0.55
+
+    else:  # robust5
+        _set_topology_space(["A", "B", "C", "D", "E"], min_edges=5, max_edges=15)
+        SIM_T_END = 250.0
+        VALID_T_END = 500.0
+        SIM_N_STEPS = 1200
+        INNER_N_SEEDS = 1
+        VALID_N_SEEDS = 5
+        TRAIN_SEED_OFFSET = 142
+        VALID_SEED_OFFSET = 20_142
+        RANDOM_SEARCH_N = 20
+        EVO_SEARCH_N = 40
+        INNER_MAX_EVALS = 320
+        INNER_NUM_WORKERS = 8
+        AGENTIC_SEARCH_N = 20
+        AGENTIC_BOOTSTRAP_ITERS = 6
+        AGENTIC_EXPLORE_MIN_HAMMING = 5
+        AGENTIC_DIVERSITY_TOP_K = 6
+        LLM_TOP_K = 8
+        LLM_NICHE_K = 8
+        LLM_RECENT_K = 12
+
+        PHENOTYPE_MODE = "robust_oscillator_5"
+        COHERENCE_GENE_THRESHOLD = 0.50
+        COHERENCE_TARGET_GENES = 3
+        TRACE_TARGET_PARTICIPANTS = 3
+        TRACE_BEST_GENE_WEIGHT = 0.20
+        TRACE_PARTICIPATION_WEIGHT = 0.35
+        TRACE_PERIOD_COHERENCE_WEIGHT = 0.25
+        TRACE_PHASE_COHERENCE_WEIGHT = 0.0
+        TRACE_SUPPORT_WEIGHT = 0.20
+
+        ROBUST_FULL_WEIGHT = 0.30
+        ROBUST_KNOCKOUT_WEIGHT = 0.20
+        ROBUST_KNOCKOUT_PASS_WEIGHT = 0.10
+        ROBUST_KNOCKDOWN_WEIGHT = 0.20
+        ROBUST_PARAM_PERTURB_WEIGHT = 0.20
+        TRAIN_KNOCKOUT_SAMPLES = 2
+        VALID_KNOCKOUT_SAMPLES = -1
+        TRAIN_KNOCKDOWN_SAMPLES = 0
+        VALID_KNOCKDOWN_SAMPLES = -1
+        KNOCKDOWN_FACTOR = 0.35
+        TRAIN_PARAM_PERTURB_SAMPLES = 0
+        VALID_PARAM_PERTURB_SAMPLES = 6
+        PARAM_PERTURB_SIGMA = 0.25
+        ROBUST_SCENARIO_AGGREGATION_QUANTILE = 0.25
+        ROBUST_SUCCESS_THRESHOLD = 0.90
+
+    return EXPERIMENT
+
+
+# Initialize module globals for the default experiment.
+set_experiment(DEFAULT_EXPERIMENT)

@@ -37,23 +37,7 @@ import config as cfg
 
 # ── System prompt ─────────────────────────────────────────
 
-SYSTEM_PROMPT = f"""\
-You are a synthetic biology circuit designer. You search for 3-gene
-regulatory network topologies that produce robust stochastic oscillations.
-
-## Topology Encoding
-
-A topology is a tuple of 9 integers, each ∈ {0, 1, 2}:
-  0 = no interaction
-  1 = activation
-  2 = inhibition
-
-Edge order: [A→A, B→B, C→C, A→B, A→C, B→A, B→C, C→A, C→B]
-
-Constraints:
-  - Between 2 and 6 active edges (non-zero values)
-  - No isolated nodes (every gene must have ≥1 incoming or outgoing edge)
-
+GUIDED_MOTIF_SECTION_3 = """\
 ## Known Oscillator Motifs
 
 Good oscillators often feature:
@@ -66,12 +50,81 @@ Bad topologies:
   - Pure positive feedback (usually leads to runaway or bistability)
   - No feedback loops at all
   - Very few edges (< 3 usually too simple)
+"""
 
-## Your Task
+GUIDED_MOTIF_SECTION_5 = """\
+## Robust 5-Gene Design Priors
 
-Given the history of previously tested topologies and their measured
-performance, propose the NEXT topology to test.
+Good robust oscillators often feature:
+  - Multiple overlapping negative feedback loops
+  - Backup sub-oscillators that can survive single-gene failure
+  - Mixed sparse cores plus extra reinforcing loops
+  - Alternative motif families beyond a single minimal 3-gene ring
 
+Bad topologies:
+  - Pure positive feedback with no delayed repression
+  - One fragile minimal loop with no redundant support
+  - Extremely dense topologies with no clear oscillatory backbone
+"""
+
+BLIND_MOTIF_SECTION = """\
+## Search Discipline
+
+This is a BLIND benchmark mode.
+Do not assume any named canonical motif is optimal.
+Use only the grammar constraints and the observed search history.
+
+Bad topologies:
+  - Pure positive feedback (usually leads to runaway or bistability)
+  - No feedback loops at all
+  - Very few edges (< 3 usually too simple)
+"""
+
+
+def _json_topology_template() -> str:
+    """Return a compact zero-filled topology template for prompts."""
+    return "[" + ",".join("0" for _ in range(cfg.NUM_EDGE_SLOTS)) + "]"
+
+
+def _edge_order_text() -> str:
+    """Return the current experiment's edge ordering for prompt display."""
+    return "[" + ", ".join(cfg.EDGE_NAMES) + "]"
+
+
+def _experiment_prompt_header() -> str:
+    """Describe the active experiment objective to the LLM."""
+    if cfg.EXPERIMENT == "robust5":
+        return (
+            f"You are a synthetic biology circuit designer. You search for {cfg.NUM_GENES}-gene\n"
+            "regulatory network topologies that sustain stochastic oscillations and remain\n"
+            "oscillatory after single-gene failures, partial knockdowns, and local\n"
+            "parameter perturbations.\n"
+        )
+    return (
+        f"You are a synthetic biology circuit designer. You search for {cfg.NUM_GENES}-gene\n"
+        "regulatory network topologies that produce robust stochastic oscillations.\n"
+    )
+
+
+def _experiment_metrics_text() -> str:
+    """Explain how experiment results are reported back to the model."""
+    if cfg.EXPERIMENT == "robust5":
+        return f"""\
+Each experiment reports:
+  - rank_score = validation_score - {cfg.GENERALIZATION_GAP_PENALTY:.1f} * |train_score - validation_score|
+  - train_score / validation_score: weighted robust-oscillator score
+  - full_score: intact-network oscillation quality
+  - knockout_score: q{int(round(100 * cfg.ROBUST_SCENARIO_AGGREGATION_QUANTILE)):02d} score across single-gene knockouts
+  - knockout_pass_rate: fraction of knockouts with score ≥ {cfg.ROBUST_SUCCESS_THRESHOLD:.2f}
+  - knockdown_score: q{int(round(100 * cfg.ROBUST_SCENARIO_AGGREGATION_QUANTILE)):02d} score across partial single-gene knockdowns
+  - perturb_score: q{int(round(100 * cfg.ROBUST_SCENARIO_AGGREGATION_QUANTILE)):02d} score across local parameter jitters around the fcmaes optimum
+  - gap: |train_score - validation_score|
+  - period: approximate intact-network oscillation period
+
+Use validation_score, knockout_score, knockdown_score, perturb_score, and knockout_pass_rate as the main learning signals.
+Do not chase train_score alone.
+"""
+    return f"""\
 Each experiment reports:
   - rank_score = validation_score - {cfg.GENERALIZATION_GAP_PENALTY:.1f} * |train_score - validation_score|
   - train_score: short-horizon score used during parameter optimisation
@@ -81,10 +134,53 @@ Each experiment reports:
 
 Use validation_score and small gap as the main learning signal.
 Do not chase train_score alone.
+"""
+
+
+def build_system_prompt(agentic_mode: str = cfg.AGENTIC_MODE) -> str:
+    """Build the mode-specific system prompt for the LLM."""
+    if agentic_mode == "guided":
+        motif_section = GUIDED_MOTIF_SECTION_5 if cfg.EXPERIMENT == "robust5" else GUIDED_MOTIF_SECTION_3
+    else:
+        motif_section = BLIND_MOTIF_SECTION
+    return f"""\
+{_experiment_prompt_header()}
+
+## Topology Encoding
+
+A topology is a tuple of {cfg.NUM_EDGE_SLOTS} integers, each ∈ {{0, 1, 2}}:
+  0 = no interaction
+  1 = activation
+  2 = inhibition
+
+Edge order: {_edge_order_text()}
+
+Constraints:
+  - Between {cfg.MIN_ACTIVE_EDGES} and {cfg.MAX_ACTIVE_EDGES} active edges (non-zero values)
+  - No isolated nodes (every gene must have ≥1 incoming or outgoing edge)
+
+{motif_section}
+
+## Your Task
+
+Given the history of previously tested topologies and their measured
+performance, propose the NEXT topology to test.
+
+The archive preserves both:
+  - best overall topologies
+  - best representative per structural niche
+
+Each structural niche summarizes:
+  - active edge count
+  - activation vs inhibition count
+  - number of self-regulatory edges
+  - coarse motif flags such as repressilator / toggle / mixed_cycle / other
+
+{_experiment_metrics_text()}
 
 Respond with ONLY a JSON object:
 {{
-  "topology": [int, int, int, int, int, int, int, int, int],
+  "topology": {_json_topology_template()},
   "rationale": "Brief explanation of why this topology might oscillate."
 }}
 """
@@ -99,8 +195,66 @@ def _fmt_metric(value: Optional[float], digits: int = 4, default: str = "n/a") -
     return f"{value:.{digits}f}"
 
 
+def hamming_distance(a: Topology, b: Topology) -> int:
+    """Count the number of edge slots that differ between two topologies."""
+    return sum(x != y for x, y in zip(a.edges, b.edges))
+
+
+def select_agentic_phase(agentic_mode: str,
+                         archive_size: int,
+                         bootstrap_iters: int = cfg.AGENTIC_BOOTSTRAP_ITERS) -> str:
+    """Choose the current outer-loop phase for prompting and diversity control."""
+    if archive_size < bootstrap_iters:
+        return "bootstrap"
+    if agentic_mode == "blind":
+        return "blind"
+    return "explore" if (archive_size - bootstrap_iters) % 2 == 0 else "exploit"
+
+
+def format_bootstrap_history(archive: Archive) -> str:
+    """Summarize tried topologies during the no-score bootstrap phase."""
+    lines = [f"Bootstrap evaluations completed: {len(archive)}"]
+    if len(archive) == 0:
+        lines.append("No topologies evaluated yet.")
+        return "\n".join(lines)
+    lines.append("Tried topologies so far (scores intentionally hidden):")
+    for result in archive.results[-cfg.LLM_RECENT_K:]:
+        lines.append(
+            f"  iter={result.iteration}  "
+            f"edges={list(result.topology.edges)}  "
+            f"active={result.topology.num_active_edges}  "
+            f"niche={result.niche_key}  "
+            f"motif={result.topology.to_label()}"
+        )
+    return "\n".join(lines)
+
+
+def build_current_best_block(archive: Archive) -> Optional[str]:
+    """Format the current best result for exploit-style prompts."""
+    best = archive.best
+    if best is None:
+        return None
+    return (
+        "\nCurrent best topology:\n"
+        f"  rank={best.score:.4f}\n"
+        f"  validation_score={_fmt_metric(best.validation_score)}\n"
+        f"  train_score={_fmt_metric(best.train_score)}\n"
+        f"  gap={_fmt_metric(best.generalization_gap)}\n"
+        f"  period={_fmt_metric(best.validation_period, digits=1)}\n"
+        f"  full_score={_fmt_metric(best.validation_full_score)}\n"
+        f"  knockout_score={_fmt_metric(best.validation_knockout_score)}\n"
+        f"  knockout_pass_rate={_fmt_metric(best.validation_knockout_pass_rate, digits=2)}\n"
+        f"  knockdown_score={_fmt_metric(best.validation_knockdown_score)}\n"
+        f"  perturb_score={_fmt_metric(best.validation_param_perturb_score)}\n"
+        f"  niche={best.niche_key}\n"
+        f"  edges={list(best.topology.edges)}\n"
+        f"  motif={best.topology.to_label()}"
+    )
+
+
 def format_history_for_llm(archive: Archive,
                            top_k: int = cfg.LLM_TOP_K,
+                           niche_k: int = cfg.LLM_NICHE_K,
                            recent_k: int = cfg.LLM_RECENT_K) -> str:
     """Build a compact regenerated history block for each new turn."""
     stats = archive.score_stats()
@@ -116,6 +270,7 @@ def format_history_for_llm(archive: Archive,
         f"mean_rank={stats['mean']:.4f}  median_rank={stats['median']:.4f}  "
         f"nonzero={stats['nonzero']}"
     )
+    lines.append(f"Structural niches discovered: {stats['niches']}")
     if "best_validation" in stats:
         lines.append(
             f"Best validation so far: {stats['best_validation']:.4f}  "
@@ -134,8 +289,34 @@ def format_history_for_llm(archive: Archive,
                 f"train={_fmt_metric(result.train_score)}  "
                 f"gap={_fmt_metric(result.generalization_gap)}  "
                 f"period={_fmt_metric(result.validation_period, digits=1)}  "
+                f"full={_fmt_metric(result.validation_full_score)}  "
+                f"ko={_fmt_metric(result.validation_knockout_score)}  "
+                f"pass={_fmt_metric(result.validation_knockout_pass_rate, digits=2)}  "
+                f"kd={_fmt_metric(result.validation_knockdown_score)}  "
+                f"pert={_fmt_metric(result.validation_param_perturb_score)}  "
+                f"niche={result.niche_key}  "
                 f"edges={list(result.topology.edges)}  "
                 f"active={result.topology.num_active_edges}  "
+                f"motif={result.topology.to_label()}"
+            )
+
+    niche_results = archive.niche_elites(niche_k)
+    if niche_results:
+        lines.append("\nBest structural niche elites:")
+        for rank, result in enumerate(niche_results, 1):
+            lines.append(
+                f"  [N{rank}] niche={result.niche_key}  "
+                f"rank={result.score:.4f}  "
+                f"val={_fmt_metric(result.validation_score)}  "
+                f"train={_fmt_metric(result.train_score)}  "
+                f"gap={_fmt_metric(result.generalization_gap)}  "
+                f"period={_fmt_metric(result.validation_period, digits=1)}  "
+                f"full={_fmt_metric(result.validation_full_score)}  "
+                f"ko={_fmt_metric(result.validation_knockout_score)}  "
+                f"pass={_fmt_metric(result.validation_knockout_pass_rate, digits=2)}  "
+                f"kd={_fmt_metric(result.validation_knockdown_score)}  "
+                f"pert={_fmt_metric(result.validation_param_perturb_score)}  "
+                f"edges={list(result.topology.edges)}  "
                 f"motif={result.topology.to_label()}"
             )
 
@@ -149,6 +330,12 @@ def format_history_for_llm(archive: Archive,
                 f"train={_fmt_metric(result.train_score)}  "
                 f"gap={_fmt_metric(result.generalization_gap)}  "
                 f"period={_fmt_metric(result.validation_period, digits=1)}  "
+                f"full={_fmt_metric(result.validation_full_score)}  "
+                f"ko={_fmt_metric(result.validation_knockout_score)}  "
+                f"pass={_fmt_metric(result.validation_knockout_pass_rate, digits=2)}  "
+                f"kd={_fmt_metric(result.validation_knockdown_score)}  "
+                f"pert={_fmt_metric(result.validation_param_perturb_score)}  "
+                f"niche={result.niche_key}  "
                 f"edges={list(result.topology.edges)}  "
                 f"motif={result.topology.to_label()}"
             )
@@ -159,37 +346,64 @@ def format_history_for_llm(archive: Archive,
 def build_user_message(archive: Archive,
                        iteration: int,
                        n_iterations: int,
+                       agentic_mode: str = cfg.AGENTIC_MODE,
+                       phase: Optional[str] = None,
+                       bootstrap_iters: int = cfg.AGENTIC_BOOTSTRAP_ITERS,
+                       explore_min_hamming: int = cfg.AGENTIC_EXPLORE_MIN_HAMMING,
                        top_k: int = cfg.LLM_TOP_K,
+                       niche_k: int = cfg.LLM_NICHE_K,
                        recent_k: int = cfg.LLM_RECENT_K) -> str:
     """Rebuild the full prompt for the current turn from archive state."""
+    if phase is None:
+        phase = select_agentic_phase(agentic_mode, len(archive), bootstrap_iters)
     parts = []
 
-    if len(archive) == 0:
+    if phase == "bootstrap":
+        parts.append(format_bootstrap_history(archive))
         parts.append(
-            "This is the FIRST experiment. Start with a strong oscillator motif "
-            "such as the repressilator (A⊣B, B⊣C, C⊣A) or a Goodwin-style loop."
+            "\nPrompt mode: BOOTSTRAP DISCOVERY\n"
+            "- No scores are shown yet; use this phase to seed structurally different parts of the search space.\n"
+            "- Do not start from a named canonical motif unless the observed archive already justifies it.\n"
+            f"- Prefer a topology at least {explore_min_hamming} edge edits away from previously evaluated topologies.\n"
+            "- Keep proposals simple, valid, and diverse."
         )
     else:
-        parts.append(format_history_for_llm(archive, top_k=top_k, recent_k=recent_k))
-        best = archive.best
-        if best is not None:
-            parts.append(
-                "\nCurrent best topology:\n"
-                f"  rank={best.score:.4f}\n"
-                f"  validation_score={_fmt_metric(best.validation_score)}\n"
-                f"  train_score={_fmt_metric(best.train_score)}\n"
-                f"  gap={_fmt_metric(best.generalization_gap)}\n"
-                f"  period={_fmt_metric(best.validation_period, digits=1)}\n"
-                f"  edges={list(best.topology.edges)}\n"
-                f"  motif={best.topology.to_label()}"
-            )
         parts.append(
-            "\nPrompt mode: EXPLOIT STRUCTURE WITH DIVERSITY\n"
-            "- Use high-validation, low-gap motifs as anchors, but do not keep proposing the exact same structure.\n"
-            "- Prefer negative-feedback loops, delayed negative feedback, or mixed activation/inhibition motifs.\n"
-            "- Prefer motifs that should validate over longer horizons, not just spike on the short training run.\n"
-            "- Keep proposals inside the 3-gene grammar and respond with only the required JSON object."
+            format_history_for_llm(
+                archive,
+                top_k=top_k,
+                niche_k=niche_k,
+                recent_k=recent_k,
+            )
         )
+        if phase == "exploit":
+            best_block = build_current_best_block(archive)
+            if best_block is not None:
+                parts.append(best_block)
+            parts.append(
+                "\nPrompt mode: GUIDED EXPLOIT\n"
+                "- Refine high-validation, low-gap families, but do not repeat the exact same topology.\n"
+                "- Use both the global bests and the niche elites as anchors and look for small, plausible structural improvements.\n"
+                "- Prefer motifs that should validate over longer horizons, not just spike on the short training run."
+            )
+        elif phase == "explore":
+            parts.append(
+                "\nPrompt mode: GUIDED EXPLORE\n"
+                f"- Propose a topology at least {explore_min_hamming} edge edits away from the current top archive family.\n"
+                "- Prioritize underrepresented niches, different sign patterns, and alternative feedback layouts.\n"
+                "- Use the niche elite section to identify strong but structurally distinct families worth expanding.\n"
+                "- Do not just mutate the current best by one small tweak."
+            )
+        else:
+            best_block = build_current_best_block(archive)
+            if best_block is not None:
+                parts.append(best_block)
+            parts.append(
+                "\nPrompt mode: BLIND BENCHMARK\n"
+                "- Use only the observed archive and the grammar constraints.\n"
+                "- Do not rely on named canonical motifs or external literature priors.\n"
+                "- Balance improvement with testing genuinely different structures and niche families."
+            )
 
     parts.append(
         f"\nIteration {iteration + 1} of {n_iterations}.\n"
@@ -197,6 +411,66 @@ def build_user_message(archive: Archive,
         "Respond with ONLY the JSON object."
     )
     return "\n\n".join(parts)
+
+
+def _dedupe_results(results: list[SearchResult]) -> list[SearchResult]:
+    """Remove duplicate topology references while preserving order."""
+    unique: list[SearchResult] = []
+    seen = set()
+    for result in results:
+        if result.topology.edges in seen:
+            continue
+        seen.add(result.topology.edges)
+        unique.append(result)
+    return unique
+
+
+def select_diversity_references(archive: Archive,
+                                phase: str,
+                                diversity_top_k: int = cfg.AGENTIC_DIVERSITY_TOP_K) -> list[SearchResult]:
+    """Choose which archived results define the current diversity basin."""
+    if len(archive) == 0:
+        return []
+    if phase == "bootstrap":
+        return list(archive.results)
+    if phase == "explore":
+        refs = archive.niche_elites(diversity_top_k) + archive.results[-cfg.LLM_RECENT_K:]
+        return _dedupe_results(refs)
+    return []
+
+
+def min_hamming_to_results(topology: Topology,
+                           results: list[SearchResult]) -> Optional[int]:
+    """Return the minimum Hamming distance to a set of archived topologies."""
+    if not results:
+        return None
+    return min(hamming_distance(topology, result.topology) for result in results)
+
+
+def build_diversity_retry_prompt(
+    proposed: Topology,
+    references: list[SearchResult],
+    min_hamming: int,
+    phase: str,
+) -> str:
+    """Ask the LLM for a more novel topology when the proposal is too close."""
+    mode_label = "bootstrap" if phase == "bootstrap" else "exploration"
+    lines = [
+        f"Your previous topology was too close to the current {mode_label} reference set.",
+        f"Reply with ONLY a JSON object for a topology that is at least {min_hamming} edge edits away from each reference below.",
+        f"Rejected topology: {list(proposed.edges)}  [{proposed.to_label()}]",
+        "Reference topologies:",
+    ]
+    for result in references[:cfg.AGENTIC_DIVERSITY_TOP_K]:
+        lines.append(
+            f"  - edges={list(result.topology.edges)}  "
+            f"motif={result.topology.to_label()}"
+        )
+    lines.extend([
+        "Required format:",
+        f'{{"topology":{_json_topology_template()},"rationale":"brief text"}}',
+    ])
+    return "\n".join(lines)
 
 
 def flatten_messages_for_native(messages: list[dict]) -> tuple[str, str]:
@@ -298,10 +572,10 @@ def _topology_from_data(data: object) -> Optional[Topology]:
     except Exception:
         return None
 
-    if len(edges) != 9:
-        print(f"  [LLM] Expected 9 edges, got {len(edges)}")
+    if len(edges) != cfg.NUM_EDGE_SLOTS:
+        print(f"  [LLM] Expected {cfg.NUM_EDGE_SLOTS} edges, got {len(edges)}")
         return None
-    if not all(e in (0, 1, 2) for e in edges):
+    if not all(e in cfg.EDGE_VALUES for e in edges):
         print(f"  [LLM] Invalid edge values: {edges}")
         return None
 
@@ -316,7 +590,12 @@ def _topology_from_data(data: object) -> Optional[Topology]:
 
 def _extract_topology_by_regex(text: str) -> Optional[Topology]:
     """Recover the topology list even if the surrounding JSON is malformed."""
-    match = re.search(r"\[\s*[012]\s*(?:,\s*[012]\s*){8}\]", text, re.DOTALL)
+    pattern = (
+        r"\[\s*[012]\s*(?:,\s*[012]\s*){"
+        + str(cfg.NUM_EDGE_SLOTS - 1)
+        + r"}\]"
+    )
+    match = re.search(pattern, text, re.DOTALL)
     if not match:
         return None
     try:
@@ -338,8 +617,8 @@ def build_json_repair_prompt(raw_response: str) -> str:
         "Your previous reply was not valid JSON for this task.\n"
         "Reply again with ONLY a compact JSON object, no markdown fences, no prose.\n"
         "Required format:\n"
-        '{"topology":[0,0,0,0,0,0,0,0,0],"rationale":"brief text"}\n'
-        "The topology must contain exactly 9 integers, each in {0,1,2}.\n\n"
+        f'{{"topology":{_json_topology_template()},"rationale":"brief text"}}\n'
+        f"The topology must contain exactly {cfg.NUM_EDGE_SLOTS} integers, each in {{0,1,2}}.\n\n"
         f"Previous reply:\n{compact}"
     )
 
@@ -385,7 +664,10 @@ def run_agentic_search(
     llm_call_fn: Callable[[list[dict]], str],
     n_iterations: int = cfg.AGENTIC_SEARCH_N,
     max_evals_inner: int = cfg.INNER_MAX_EVALS,
-    n_retries: int = cfg.INNER_NUM_RETRIES,
+    n_workers: int = cfg.INNER_NUM_WORKERS,
+    agentic_mode: str = cfg.AGENTIC_MODE,
+    bootstrap_iters: int = cfg.AGENTIC_BOOTSTRAP_ITERS,
+    explore_min_hamming: int = cfg.AGENTIC_EXPLORE_MIN_HAMMING,
     seed_archive: Optional[Archive] = None,
 ) -> Archive:
     """
@@ -395,27 +677,34 @@ def run_agentic_search(
         llm_call_fn:     callable(messages) → response text
         n_iterations:    Number of LLM proposals to evaluate.
         max_evals_inner: Budget for fcmaes inner optimisation per topology.
-        n_retries:       Number of fcmaes restarts per topology.
+        n_workers:       Number of fcmaes parallel workers.
         seed_archive:    Optional archive from a prior search to warm-start.
 
     Returns:
         Archive with all evaluation results.
     """
     archive = seed_archive if seed_archive is not None else Archive()
-    conv = Conversation(SYSTEM_PROMPT)
+    conv = Conversation(build_system_prompt(agentic_mode))
     consecutive_failures = 0
     total_t0 = time.perf_counter()
 
     for i in range(n_iterations):
         print(f"\n{'='*60}")
         print(f"[Agentic {i+1}/{n_iterations}]")
+        phase = select_agentic_phase(agentic_mode, len(archive), bootstrap_iters)
+        print(f"  Phase: {phase}  mode={agentic_mode}")
 
         # ── Build prompt with history ─────────────────────
         user_prompt = build_user_message(
             archive,
             iteration=i,
             n_iterations=n_iterations,
+            agentic_mode=agentic_mode,
+            phase=phase,
+            bootstrap_iters=bootstrap_iters,
+            explore_min_hamming=explore_min_hamming,
             top_k=cfg.LLM_TOP_K,
+            niche_k=cfg.LLM_NICHE_K,
             recent_k=cfg.LLM_RECENT_K,
         )
         messages = conv.messages(user_prompt)
@@ -470,9 +759,70 @@ def run_agentic_search(
             )
             continue
 
+        diversity_refs = select_diversity_references(archive, phase)
+        diversity_distance = min_hamming_to_results(topology, diversity_refs)
+        if diversity_distance is not None:
+            print(f"  Diversity distance: {diversity_distance}")
+        if diversity_distance is not None and diversity_distance < explore_min_hamming:
+            print(
+                "  [LLM] Proposal too close to the current reference set "
+                f"(distance={diversity_distance}, required>={explore_min_hamming})."
+            )
+            diversity_prompt = build_diversity_retry_prompt(
+                topology,
+                diversity_refs,
+                explore_min_hamming,
+                phase,
+            )
+            try:
+                diversity_messages = conv.messages(diversity_prompt)
+                diversity_response = llm_call_fn(diversity_messages)
+                topology = parse_llm_response(diversity_response)
+            except Exception as e:
+                topology = None
+                print(f"  [LLM] Diversity retry API error: {e}")
+
+            if topology is None:
+                conv.add_exchange(
+                    f"Iteration {i+1}: propose the next topology.",
+                    "(failed to satisfy diversity constraint; output a novel topology in strict compact JSON)",
+                )
+                consecutive_failures += 1
+                if consecutive_failures > cfg.LLM_MAX_CONSECUTIVE_FAILURES:
+                    print("  Too many invalid proposals. Stopping.")
+                    break
+                continue
+
+            print(f"  Diversity retry proposed: {topology.to_label()}")
+            if archive.already_evaluated(topology):
+                print("  Already evaluated after diversity retry — skipping.")
+                conv.add_exchange(
+                    f"Tried topology {list(topology.edges)}.",
+                    f"(duplicate topology skipped after diversity retry: {topology.to_label()})",
+                )
+                continue
+
+            diversity_distance = min_hamming_to_results(topology, diversity_refs)
+            if diversity_distance is not None:
+                print(f"  Diversity distance: {diversity_distance}")
+            if diversity_distance is not None and diversity_distance < explore_min_hamming:
+                print("  [LLM] Diversity retry still too close — skipping.")
+                conv.add_exchange(
+                    f"Iteration {i+1}: propose the next topology.",
+                    (
+                        f"(proposal remained within {explore_min_hamming} edge edits "
+                        "of the protected reference set; try a more novel structure)"
+                    ),
+                )
+                consecutive_failures += 1
+                if consecutive_failures > cfg.LLM_MAX_CONSECUTIVE_FAILURES:
+                    print("  Too many invalid proposals. Stopping.")
+                    break
+                continue
+
         # ── Inner optimisation ────────────────────────────
         result = optimize_topology(
-            topology, max_evals=max_evals_inner, n_retries=n_retries,
+            topology, max_evals=max_evals_inner, n_workers=n_workers,
             verbose=True,
         )
         archive.add(SearchResult(
@@ -485,19 +835,52 @@ def run_agentic_search(
             train_score=result["train_score"],
             train_raw_score=result["train_raw_score"],
             train_period=result["train_period"],
+            train_full_score=result["train_full_score"],
+            train_knockout_score=result["train_knockout_score"],
+            train_knockout_pass_rate=result["train_knockout_pass_rate"],
+            train_knockdown_score=result["train_knockdown_score"],
+            train_param_perturb_score=result["train_param_perturb_score"],
             validation_score=result["validation_score"],
             validation_raw_score=result["validation_raw_score"],
             validation_period=result["validation_period"],
+            validation_full_score=result["validation_full_score"],
+            validation_knockout_score=result["validation_knockout_score"],
+            validation_knockout_pass_rate=result["validation_knockout_pass_rate"],
+            validation_knockdown_score=result["validation_knockdown_score"],
+            validation_param_perturb_score=result["validation_param_perturb_score"],
             generalization_gap=result["generalization_gap"],
         ))
+        detail = ""
+        if result["validation_knockout_score"] is not None:
+            detail = (
+                f"  full={result['validation_full_score']:.4f}"
+                f"  ko={result['validation_knockout_score']:.4f}"
+                f"  pass={result['validation_knockout_pass_rate']:.2f}"
+            )
+        if result["validation_knockdown_score"] is not None:
+            detail += f"  kd={result['validation_knockdown_score']:.4f}"
+        if result["validation_param_perturb_score"] is not None:
+            detail += f"  pert={result['validation_param_perturb_score']:.4f}"
         print(
             f"  → rank = {result['best_score']:.4f}  "
             f"(train={result['train_score']:.4f}  "
             f"val={result['validation_score']:.4f}  "
             f"gap={result['generalization_gap']:.4f}  "
-            f"period={result['validation_period']:.1f})"
+            f"period={result['validation_period']:.1f}"
+            f"{detail})"
         )
         print(f"\n{archive.summary()}")
+        aux = ""
+        if result["validation_knockout_score"] is not None:
+            aux = (
+                f" full={result['validation_full_score']:.4f}"
+                f" ko={result['validation_knockout_score']:.4f}"
+                f" pass={result['validation_knockout_pass_rate']:.2f}"
+            )
+        if result["validation_knockdown_score"] is not None:
+            aux += f" kd={result['validation_knockdown_score']:.4f}"
+        if result["validation_param_perturb_score"] is not None:
+            aux += f" pert={result['validation_param_perturb_score']:.4f}"
         conv.add_exchange(
             f"Tried topology {list(topology.edges)}.",
             (
@@ -506,6 +889,7 @@ def run_agentic_search(
                 f"train={result['train_score']:.4f} "
                 f"gap={result['generalization_gap']:.4f} "
                 f"period={result['validation_period']:.1f} "
+                f"{aux} "
                 f"motif={topology.to_label()} active_edges={topology.num_active_edges}"
             ),
         )

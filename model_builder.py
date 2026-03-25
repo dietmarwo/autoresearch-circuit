@@ -10,7 +10,7 @@ Regulatory contributions (Hill-like custom propensities):
   Inhibition by R on X:  strength * K^n / (K^n + R^n)
 
 Parameter vector layout for a given topology:
-  [basal_A, deg_A, basal_B, deg_B, basal_C, deg_C,
+  [basal_A, deg_A, basal_B, deg_B, ...,
    strength_edge_i, hill_edge_i, ...]
   where only active edges (edge value != 0) appear, in edge-index order.
 """
@@ -42,7 +42,10 @@ def build_param_bounds(topology: Topology):
 
 def build_model(topology: Topology, params: np.ndarray,
                 t_end: float = cfg.SIM_T_END,
-                n_steps: int = cfg.SIM_N_STEPS) -> gillespy2.Model:
+                n_steps: int = cfg.SIM_N_STEPS,
+                knockout_genes: tuple[int, ...] = (),
+                knockdown_genes: tuple[int, ...] = (),
+                knockdown_factor: float = cfg.KNOCKDOWN_FACTOR) -> gillespy2.Model:
     """
     Construct a GillesPy2 Model from a topology and continuous parameter vector.
 
@@ -51,6 +54,9 @@ def build_model(topology: Topology, params: np.ndarray,
         params:   Continuous parameter vector (length = topology.num_params).
         t_end:    Simulation end time.
         n_steps:  Number of time-points in the output trajectory.
+        knockout_genes: Indices of genes to hold at zero copy number.
+        knockdown_genes: Indices of genes with reduced production.
+        knockdown_factor: Remaining production / initial-copy fraction.
 
     Returns:
         A gillespy2.Model ready for stochastic simulation.
@@ -69,8 +75,16 @@ def build_model(topology: Topology, params: np.ndarray,
 
     # ── Species ───────────────────────────────────────────
     species = {}
-    for gene in cfg.GENES:
-        sp = gillespy2.Species(name=gene, initial_value=cfg.INITIAL_COPIES)
+    knockout_set = set(knockout_genes)
+    knockdown_set = set(knockdown_genes) - knockout_set
+    for gi, gene in enumerate(cfg.GENES):
+        if gi in knockout_set:
+            initial_value = 0
+        elif gi in knockdown_set:
+            initial_value = max(0, int(round(cfg.INITIAL_COPIES * knockdown_factor)))
+        else:
+            initial_value = cfg.INITIAL_COPIES
+        sp = gillespy2.Species(name=gene, initial_value=initial_value)
         model.add_species(sp)
         species[gene] = sp
 
@@ -112,28 +126,39 @@ def build_model(topology: Topology, params: np.ndarray,
 
     for gi, gene in enumerate(cfg.GENES):
         # ── Production ────────────────────────────────────
-        # Basal term always present
-        rate_terms = [f"{gene}_basal"]
+        if gi in knockout_set:
+            prod_rate = "0.0"
+        else:
+            # Basal term always present
+            rate_terms = [f"{gene}_basal"]
 
-        # Add Hill terms for each regulatory edge targeting this gene
-        for idx, val in enumerate(topology.edges):
-            if val == 0:
-                continue
-            src_idx, tgt_idx = cfg.EDGE_INDEX_MAP[idx]
-            if tgt_idx != gi:
-                continue
+            # Add Hill terms for each regulatory edge targeting this gene
+            for idx, val in enumerate(topology.edges):
+                if val == 0:
+                    continue
+                src_idx, tgt_idx = cfg.EDGE_INDEX_MAP[idx]
+                if tgt_idx != gi:
+                    continue
 
-            src_gene = cfg.GENES[src_idx]
-            s_key = f"edge{idx}_strength"
-            h_key = f"edge{idx}_hill"
+                src_gene = cfg.GENES[src_idx]
+                s_key = f"edge{idx}_strength"
+                h_key = f"edge{idx}_hill"
 
-            if val == 1:  # activation
-                term = f"{s_key} * {src_gene}**{h_key} / ({K}**{h_key} + {src_gene}**{h_key})"
-            else:          # inhibition
-                term = f"{s_key} * {K}**{h_key} / ({K}**{h_key} + {src_gene}**{h_key})"
-            rate_terms.append(term)
+                if val == 1:  # activation
+                    term = (
+                        f"{s_key} * {src_gene}**{h_key} / "
+                        f"({K}**{h_key} + {src_gene}**{h_key})"
+                    )
+                else:          # inhibition
+                    term = (
+                        f"{s_key} * {K}**{h_key} / "
+                        f"({K}**{h_key} + {src_gene}**{h_key})"
+                    )
+                rate_terms.append(term)
 
-        prod_rate = " + ".join(rate_terms)
+            prod_rate = " + ".join(rate_terms)
+            if gi in knockdown_set:
+                prod_rate = f"({knockdown_factor}) * ({prod_rate})"
         model.add_reaction(gillespy2.Reaction(
             name=f"produce_{gene}",
             reactants={},
