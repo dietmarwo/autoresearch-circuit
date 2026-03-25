@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 520" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
+  <defs>
+    <filter id="shadow" x="-4%" y="-4%" width="108%" height="112%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.10"/>
+    </filter>
+    <linearGradient id="outerGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="innerGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0ea5e9"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <linearGradient id="evalGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="archiveGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <marker id="arrowDown" viewBox="0 0 10 10" refX="5" refY="10" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L5,10 L10,0" fill="none" stroke="#64748b" stroke-width="1.5"/>
+    </marker>
+    <marker id="arrowLeft" viewBox="0 0 10 10" refX="0" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M10,0 L0,5 L10,10" fill="none" stroke="#64748b" stroke-width="1.5"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="720" height="520" rx="12" fill="#fafbfc" stroke="#e2e8f0" stroke-width="1"/>
+
+  <!-- Title -->
+  <text x="360" y="38" text-anchor="middle" font-size="18" font-weight="700" fill="#1e293b">Split-Brain Automated Design Loop</text>
+  <text x="360" y="58" text-anchor="middle" font-size="12" fill="#64748b">Outer topology search · Inner parameter optimization · Stochastic evaluation</text>
+
+  <!-- OUTER LOOP BOX -->
+  <rect x="200" y="78" width="320" height="84" rx="10" fill="white" stroke="url(#outerGrad)" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="200" y="78" width="320" height="26" rx="10" fill="url(#outerGrad)"/>
+  <rect x="200" y="94" width="320" height="10" fill="url(#outerGrad)"/>
+  <text x="360" y="96" text-anchor="middle" font-size="13" font-weight="600" fill="white">OUTER LOOP</text>
+  <text x="360" y="125" text-anchor="middle" font-size="12" fill="#4338ca" font-weight="600">agent  ·  evolutionary  ·  random</text>
+  <text x="360" y="147" text-anchor="middle" font-size="11" fill="#64748b">proposes circuit topology T from grammar</text>
+
+  <!-- Arrow 1 -->
+  <line x1="360" y1="162" x2="360" y2="198" stroke="#64748b" stroke-width="1.8" marker-end="url(#arrowDown)"/>
+  <text x="375" y="185" font-size="10" fill="#94a3b8" font-style="italic">topology T</text>
+
+  <!-- INNER LOOP BOX -->
+  <rect x="200" y="200" width="320" height="84" rx="10" fill="white" stroke="url(#innerGrad)" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="200" y="200" width="320" height="26" rx="10" fill="url(#innerGrad)"/>
+  <rect x="200" y="216" width="320" height="10" fill="url(#innerGrad)"/>
+  <text x="360" y="218" text-anchor="middle" font-size="13" font-weight="600" fill="white">INNER LOOP — fcmaes</text>
+  <text x="360" y="247" text-anchor="middle" font-size="12" fill="#0369a1" font-weight="600">DE  ·  BiteOpt  ·  pooled evaluator</text>
+  <text x="360" y="269" text-anchor="middle" font-size="11" fill="#64748b">tunes continuous kinetic params x for fixed T</text>
+
+  <!-- Arrow 2 -->
+  <line x1="360" y1="284" x2="360" y2="320" stroke="#64748b" stroke-width="1.8" marker-end="url(#arrowDown)"/>
+  <text x="375" y="307" font-size="10" fill="#94a3b8" font-style="italic">best x*</text>
+
+  <!-- EVALUATOR BOX -->
+  <rect x="200" y="322" width="320" height="84" rx="10" fill="white" stroke="url(#evalGrad)" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="200" y="322" width="320" height="26" rx="10" fill="url(#evalGrad)"/>
+  <rect x="200" y="338" width="320" height="10" fill="url(#evalGrad)"/>
+  <text x="360" y="340" text-anchor="middle" font-size="13" font-weight="600" fill="white">STOCHASTIC EVALUATOR</text>
+  <text x="360" y="369" text-anchor="middle" font-size="12" fill="#92400e" font-weight="600">GillesPy2 SSA  ·  multi-seed scoring</text>
+  <text x="360" y="391" text-anchor="middle" font-size="11" fill="#64748b">simulate + score + robustness checks</text>
+
+  <!-- Arrow 3 -->
+  <line x1="360" y1="406" x2="360" y2="442" stroke="#64748b" stroke-width="1.8" marker-end="url(#arrowDown)"/>
+  <text x="375" y="429" font-size="10" fill="#94a3b8" font-style="italic">score tuple</text>
+
+  <!-- ARCHIVE BOX -->
+  <rect x="200" y="444" width="320" height="60" rx="10" fill="white" stroke="url(#archiveGrad)" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="200" y="444" width="320" height="26" rx="10" fill="url(#archiveGrad)"/>
+  <rect x="200" y="460" width="320" height="10" fill="url(#archiveGrad)"/>
+  <text x="360" y="462" text-anchor="middle" font-size="13" font-weight="600" fill="white">ARCHIVE / FEEDBACK</text>
+  <text x="360" y="489" text-anchor="middle" font-size="11" fill="#64748b">global bests · niche elites · validation metrics</text>
+
+  <!-- Feedback arrow (archive back to outer loop) -->
+  <path d="M 200,474 L 140,474 L 140,120 L 200,120" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrowLeft)"/>
+  <text x="115" y="300" text-anchor="middle" font-size="10" fill="#94a3b8" font-style="italic" transform="rotate(-90,115,300)">feedback to next proposal</text>
+
+  <!-- Side annotations -->
+  <g transform="translate(556, 115)">
+    <circle cx="0" cy="0" r="6" fill="#6366f1" opacity="0.2"/>
+    <circle cx="0" cy="0" r="3" fill="#6366f1"/>
+    <text x="14" y="4" font-size="10" fill="#64748b">structure</text>
+  </g>
+  <g transform="translate(556, 237)">
+    <circle cx="0" cy="0" r="6" fill="#0ea5e9" opacity="0.2"/>
+    <circle cx="0" cy="0" r="3" fill="#0ea5e9"/>
+    <text x="14" y="4" font-size="10" fill="#64748b">parameters</text>
+  </g>
+  <g transform="translate(556, 359)">
+    <circle cx="0" cy="0" r="6" fill="#f59e0b" opacity="0.2"/>
+    <circle cx="0" cy="0" r="3" fill="#f59e0b"/>
+    <text x="14" y="4" font-size="10" fill="#64748b">simulation</text>
+  </g>
+  <g transform="translate(556, 474)">
+    <circle cx="0" cy="0" r="6" fill="#10b981" opacity="0.2"/>
+    <circle cx="0" cy="0" r="3" fill="#10b981"/>
+    <text x="14" y="4" font-size="10" fill="#64748b">memory</text>
+  </g>
+</svg>

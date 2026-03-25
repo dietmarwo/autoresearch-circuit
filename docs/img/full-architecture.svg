@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 620" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
+  <defs>
+    <filter id="sh" x="-3%" y="-3%" width="106%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+    <marker id="ad" viewBox="0 0 10 10" refX="5" refY="10" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M1,0 L5,10 L9,0" fill="none" stroke="#475569" stroke-width="1.5"/>
+    </marker>
+  </defs>
+
+  <rect width="760" height="620" rx="12" fill="#fafbfc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="380" y="36" text-anchor="middle" font-size="17" font-weight="700" fill="#1e293b">System Architecture</text>
+
+  <!-- 1: OUTER SEARCH -->
+  <rect x="180" y="56" width="400" height="78" rx="8" fill="white" stroke="#6366f1" stroke-width="2" filter="url(#sh)"/>
+  <rect x="180" y="56" width="400" height="24" rx="8" fill="#6366f1"/>
+  <rect x="180" y="72" width="400" height="8" fill="#6366f1"/>
+  <text x="380" y="73" text-anchor="middle" font-size="12" font-weight="600" fill="white">OUTER SEARCH</text>
+  <text x="220" y="101" font-size="11" fill="#4338ca" font-weight="500">random</text>
+  <text x="220" y="118" font-size="10" fill="#64748b">exhaustive sampling</text>
+  <text x="340" y="101" font-size="11" fill="#4338ca" font-weight="500">evolutionary</text>
+  <text x="340" y="118" font-size="10" fill="#64748b">(1+1)-ES mutation</text>
+  <text x="470" y="101" font-size="11" fill="#4338ca" font-weight="500">agentic / LLM</text>
+  <text x="470" y="118" font-size="10" fill="#64748b">prompt-guided proposals</text>
+
+  <!-- Arrow + label -->
+  <line x1="380" y1="134" x2="380" y2="172" stroke="#475569" stroke-width="1.5" marker-end="url(#ad)"/>
+  <rect x="395" y="142" width="62" height="18" rx="4" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="0.8"/>
+  <text x="426" y="155" text-anchor="middle" font-size="9" fill="#475569">topology T</text>
+
+  <!-- 2: GRAMMAR + MODEL BUILDER -->
+  <rect x="180" y="174" width="400" height="78" rx="8" fill="white" stroke="#8b5cf6" stroke-width="2" filter="url(#sh)"/>
+  <rect x="180" y="174" width="400" height="24" rx="8" fill="#8b5cf6"/>
+  <rect x="180" y="190" width="400" height="8" fill="#8b5cf6"/>
+  <text x="380" y="191" text-anchor="middle" font-size="12" font-weight="600" fill="white">GRAMMAR + MODEL BUILDER</text>
+  <text x="260" y="219" font-size="11" fill="#6d28d9" font-weight="500">edge vector → GillesPy2 model</text>
+  <text x="260" y="237" font-size="10" fill="#64748b">Hill-function propensities, bounds → param space</text>
+
+  <!-- Arrow + label -->
+  <line x1="380" y1="252" x2="380" y2="290" stroke="#475569" stroke-width="1.5" marker-end="url(#ad)"/>
+  <rect x="395" y="260" width="82" height="18" rx="4" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="0.8"/>
+  <text x="436" y="273" text-anchor="middle" font-size="9" fill="#475569">objective(T, x)</text>
+
+  <!-- 3: INNER OPTIMIZER -->
+  <rect x="180" y="292" width="400" height="78" rx="8" fill="white" stroke="#0ea5e9" stroke-width="2" filter="url(#sh)"/>
+  <rect x="180" y="292" width="400" height="24" rx="8" fill="#0ea5e9"/>
+  <rect x="180" y="308" width="400" height="8" fill="#0ea5e9"/>
+  <text x="380" y="309" text-anchor="middle" font-size="12" font-weight="600" fill="white">fcmaes INNER OPTIMIZER</text>
+  <text x="260" y="337" font-size="11" fill="#0369a1" font-weight="500">DE  ·  BiteOpt</text>
+  <text x="260" y="355" font-size="10" fill="#64748b">pooled evaluator, noisy stochastic objective</text>
+
+  <!-- Arrow + label -->
+  <line x1="380" y1="370" x2="380" y2="408" stroke="#475569" stroke-width="1.5" marker-end="url(#ad)"/>
+  <rect x="395" y="378" width="52" height="18" rx="4" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="0.8"/>
+  <text x="421" y="391" text-anchor="middle" font-size="9" fill="#475569">best x*</text>
+
+  <!-- 4: VALIDATION + STRESS -->
+  <rect x="180" y="410" width="400" height="78" rx="8" fill="white" stroke="#f59e0b" stroke-width="2" filter="url(#sh)"/>
+  <rect x="180" y="410" width="400" height="24" rx="8" fill="#f59e0b"/>
+  <rect x="180" y="426" width="400" height="8" fill="#f59e0b"/>
+  <text x="380" y="427" text-anchor="middle" font-size="12" font-weight="600" fill="white">VALIDATION + STRESS TESTS</text>
+  <text x="215" y="455" font-size="10" fill="#92400e" font-weight="500">seeds</text>
+  <text x="290" y="455" font-size="10" fill="#92400e" font-weight="500">knockout</text>
+  <text x="380" y="455" font-size="10" fill="#92400e" font-weight="500">knockdown</text>
+  <text x="480" y="455" font-size="10" fill="#92400e" font-weight="500">param jitter</text>
+  <text x="260" y="474" font-size="10" fill="#64748b">longer horizon, lower-quartile aggregation</text>
+
+  <!-- Arrow + label -->
+  <line x1="380" y1="488" x2="380" y2="526" stroke="#475569" stroke-width="1.5" marker-end="url(#ad)"/>
+  <rect x="395" y="496" width="70" height="18" rx="4" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="0.8"/>
+  <text x="430" y="509" text-anchor="middle" font-size="9" fill="#475569">score tuple</text>
+
+  <!-- 5: ARCHIVE -->
+  <rect x="180" y="528" width="400" height="70" rx="8" fill="white" stroke="#10b981" stroke-width="2" filter="url(#sh)"/>
+  <rect x="180" y="528" width="400" height="24" rx="8" fill="#10b981"/>
+  <rect x="180" y="544" width="400" height="8" fill="#10b981"/>
+  <text x="380" y="545" text-anchor="middle" font-size="12" font-weight="600" fill="white">ARCHIVE</text>
+  <text x="300" y="574" font-size="11" fill="#047857" font-weight="500">global best</text>
+  <text x="460" y="574" font-size="11" fill="#047857" font-weight="500">niche elites</text>
+  <text x="300" y="590" font-size="10" fill="#64748b">top scoring circuits</text>
+  <text x="460" y="590" font-size="10" fill="#64748b">structural diversity</text>
+
+  <!-- Divider dots between archive items -->
+  <circle cx="380" cy="578" r="2" fill="#d1d5db"/>
+
+  <!-- Feedback loop -->
+  <path d="M 180,563 L 120,563 L 120,96 L 180,96" fill="none" stroke="#475569" stroke-width="1.3" stroke-dasharray="5,4"/>
+  <polygon points="180,92 170,96 180,100" fill="#475569"/>
+  <text x="97" y="340" text-anchor="middle" font-size="9" fill="#94a3b8" font-style="italic" transform="rotate(-90,97,340)">archive feeds next proposal</text>
+
+  <!-- Right side: file labels -->
+  <g transform="translate(600, 95)" opacity="0.7">
+    <text x="0" y="0" font-size="9" fill="#6366f1" font-family="monospace">outer_loop.py</text>
+    <text x="0" y="14" font-size="9" fill="#6366f1" font-family="monospace">agentic_loop.py</text>
+  </g>
+  <g transform="translate(600, 213)" opacity="0.7">
+    <text x="0" y="0" font-size="9" fill="#8b5cf6" font-family="monospace">grammar.py</text>
+    <text x="0" y="14" font-size="9" fill="#8b5cf6" font-family="monospace">model_builder.py</text>
+  </g>
+  <g transform="translate(600, 331)" opacity="0.7">
+    <text x="0" y="0" font-size="9" fill="#0ea5e9" font-family="monospace">inner_optimizer.py</text>
+  </g>
+  <g transform="translate(600, 449)" opacity="0.7">
+    <text x="0" y="0" font-size="9" fill="#f59e0b" font-family="monospace">evaluator.py</text>
+  </g>
+  <g transform="translate(600, 567)" opacity="0.7">
+    <text x="0" y="0" font-size="9" fill="#10b981" font-family="monospace">archive.py</text>
+  </g>
+</svg>

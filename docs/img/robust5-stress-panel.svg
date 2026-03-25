@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 430" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
+  <defs>
+    <filter id="sh" x="-3%" y="-3%" width="106%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+    <marker id="ad" viewBox="0 0 10 10" refX="5" refY="10" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M1,0 L5,10 L9,0" fill="none" stroke="#475569" stroke-width="1.5"/>
+    </marker>
+    <marker id="ar" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10" fill="none" stroke="#475569" stroke-width="1.5"/>
+    </marker>
+  </defs>
+
+  <rect width="720" height="430" rx="12" fill="#fafbfc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="360" y="32" text-anchor="middle" font-size="17" font-weight="700" fill="#1e293b">robust5 Stress Panel</text>
+  <text x="360" y="52" text-anchor="middle" font-size="11" fill="#94a3b8">5-node evaluation is harder than plain oscillation: every optimized circuit faces four stress tests</text>
+
+  <!-- Central: Optimized intact circuit -->
+  <rect x="230" y="70" width="260" height="56" rx="8" fill="white" stroke="#6366f1" stroke-width="2" filter="url(#sh)"/>
+  <text x="360" y="93" text-anchor="middle" font-size="13" font-weight="600" fill="#312e81">Optimized Intact Circuit</text>
+  <text x="360" y="113" text-anchor="middle" font-size="10" fill="#64748b">fcmaes-tuned params, 5-gene topology</text>
+
+  <!-- Branching lines down -->
+  <line x1="360" y1="126" x2="360" y2="150" stroke="#475569" stroke-width="1.3"/>
+  <!-- Horizontal bar -->
+  <line x1="110" y1="150" x2="610" y2="150" stroke="#475569" stroke-width="1.3"/>
+  <!-- Vertical drops -->
+  <line x1="110" y1="150" x2="110" y2="175" stroke="#475569" stroke-width="1.3" marker-end="url(#ad)"/>
+  <line x1="280" y1="150" x2="280" y2="175" stroke="#475569" stroke-width="1.3" marker-end="url(#ad)"/>
+  <line x1="440" y1="150" x2="440" y2="175" stroke="#475569" stroke-width="1.3" marker-end="url(#ad)"/>
+  <line x1="610" y1="150" x2="610" y2="175" stroke="#475569" stroke-width="1.3" marker-end="url(#ad)"/>
+
+  <!-- Branch 1: No perturbation -->
+  <rect x="30" y="178" width="160" height="90" rx="8" fill="white" stroke="#10b981" stroke-width="1.8" filter="url(#sh)"/>
+  <rect x="30" y="178" width="160" height="24" rx="8" fill="#10b981"/>
+  <rect x="30" y="194" width="160" height="8" fill="#10b981"/>
+  <text x="110" y="196" text-anchor="middle" font-size="11" font-weight="600" fill="white">Intact Score</text>
+  <text x="110" y="222" text-anchor="middle" font-size="10" fill="#047857" font-weight="500">no perturbation</text>
+  <text x="110" y="240" text-anchor="middle" font-size="9" fill="#64748b">baseline oscillation</text>
+  <text x="110" y="256" text-anchor="middle" font-size="9" fill="#64748b">quality + multi-seed</text>
+
+  <!-- Branch 2: Knockout -->
+  <rect x="200" y="178" width="160" height="90" rx="8" fill="white" stroke="#ef4444" stroke-width="1.8" filter="url(#sh)"/>
+  <rect x="200" y="178" width="160" height="24" rx="8" fill="#ef4444"/>
+  <rect x="200" y="194" width="160" height="8" fill="#ef4444"/>
+  <text x="280" y="196" text-anchor="middle" font-size="11" font-weight="600" fill="white">Knockout</text>
+  <text x="280" y="222" text-anchor="middle" font-size="10" fill="#b91c1c" font-weight="500">single gene deleted</text>
+  <text x="280" y="240" text-anchor="middle" font-size="9" fill="#64748b">test each of 5 genes</text>
+  <text x="280" y="256" text-anchor="middle" font-size="9" fill="#64748b">lower quartile score</text>
+
+  <!-- Branch 3: Knockdown -->
+  <rect x="360" y="178" width="160" height="90" rx="8" fill="white" stroke="#f59e0b" stroke-width="1.8" filter="url(#sh)"/>
+  <rect x="360" y="178" width="160" height="24" rx="8" fill="#f59e0b"/>
+  <rect x="360" y="194" width="160" height="8" fill="#f59e0b"/>
+  <text x="440" y="196" text-anchor="middle" font-size="11" font-weight="600" fill="white">Knockdown</text>
+  <text x="440" y="222" text-anchor="middle" font-size="10" fill="#92400e" font-weight="500">partial rate reduction</text>
+  <text x="440" y="240" text-anchor="middle" font-size="9" fill="#64748b">each gene partially</text>
+  <text x="440" y="256" text-anchor="middle" font-size="9" fill="#64748b">silenced, q25 score</text>
+
+  <!-- Branch 4: Param jitter -->
+  <rect x="530" y="178" width="160" height="90" rx="8" fill="white" stroke="#8b5cf6" stroke-width="1.8" filter="url(#sh)"/>
+  <rect x="530" y="178" width="160" height="24" rx="8" fill="#8b5cf6"/>
+  <rect x="530" y="194" width="160" height="8" fill="#8b5cf6"/>
+  <text x="610" y="196" text-anchor="middle" font-size="11" font-weight="600" fill="white">Param Jitter</text>
+  <text x="610" y="222" text-anchor="middle" font-size="10" fill="#6d28d9" font-weight="500">multiplicative noise</text>
+  <text x="610" y="240" text-anchor="middle" font-size="9" fill="#64748b">around optimized x*</text>
+  <text x="610" y="256" text-anchor="middle" font-size="9" fill="#64748b">lower quartile score</text>
+
+  <!-- Converge lines down -->
+  <line x1="110" y1="268" x2="110" y2="295" stroke="#475569" stroke-width="1"/>
+  <line x1="280" y1="268" x2="280" y2="295" stroke="#475569" stroke-width="1"/>
+  <line x1="440" y1="268" x2="440" y2="295" stroke="#475569" stroke-width="1"/>
+  <line x1="610" y1="268" x2="610" y2="295" stroke="#475569" stroke-width="1"/>
+  <!-- Horizontal bar -->
+  <line x1="110" y1="295" x2="610" y2="295" stroke="#475569" stroke-width="1"/>
+  <line x1="360" y1="295" x2="360" y2="320" stroke="#475569" stroke-width="1.3" marker-end="url(#ad)"/>
+
+  <!-- Result: Composite Score -->
+  <rect x="200" y="322" width="320" height="80" rx="8" fill="white" stroke="#1e293b" stroke-width="2" filter="url(#sh)"/>
+  <rect x="200" y="322" width="320" height="26" rx="8" fill="#1e293b"/>
+  <rect x="200" y="340" width="320" height="8" fill="#1e293b"/>
+  <text x="360" y="341" text-anchor="middle" font-size="12" font-weight="600" fill="white">COMPOSITE RANK SCORE</text>
+
+  <!-- Score formula components -->
+  <g transform="translate(220, 362)">
+    <rect x="0" y="0" width="54" height="20" rx="3" fill="#ecfdf5" stroke="#6ee7b7" stroke-width="0.8"/>
+    <text x="27" y="14" text-anchor="middle" font-size="8" fill="#047857" font-weight="500">intact</text>
+  </g>
+  <text x="280" y="376" font-size="10" fill="#94a3b8">+</text>
+  <g transform="translate(290, 362)">
+    <rect x="0" y="0" width="42" height="20" rx="3" fill="#fef2f2" stroke="#fca5a5" stroke-width="0.8"/>
+    <text x="21" y="14" text-anchor="middle" font-size="8" fill="#b91c1c" font-weight="500">ko q25</text>
+  </g>
+  <text x="338" y="376" font-size="10" fill="#94a3b8">+</text>
+  <g transform="translate(346, 362)">
+    <rect x="0" y="0" width="42" height="20" rx="3" fill="#fffbeb" stroke="#fde68a" stroke-width="0.8"/>
+    <text x="21" y="14" text-anchor="middle" font-size="8" fill="#92400e" font-weight="500">kd q25</text>
+  </g>
+  <text x="394" y="376" font-size="10" fill="#94a3b8">+</text>
+  <g transform="translate(402, 362)">
+    <rect x="0" y="0" width="50" height="20" rx="3" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="0.8"/>
+    <text x="25" y="14" text-anchor="middle" font-size="8" fill="#6d28d9" font-weight="500">jitter q25</text>
+  </g>
+  <text x="458" y="376" font-size="10" fill="#94a3b8">−</text>
+  <g transform="translate(466, 362)">
+    <rect x="0" y="0" width="36" height="20" rx="3" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="0.8"/>
+    <text x="18" y="14" text-anchor="middle" font-size="8" fill="#475569" font-weight="500">gap</text>
+  </g>
+
+  <text x="360" y="400" text-anchor="middle" font-size="9" fill="#64748b">weighted scalar → final topology ranking</text>
+</svg>

@@ -7,11 +7,9 @@ This project is closely related to the CircuiTree paper
 ["Designing biochemical circuits with tree search"](https://doi.org/10.1101/2025.01.27.635147)
 by Pranav S. Bhamidipati and Matthew Thomson.
 
-```
-Outer loop proposes topology → fcmaes optimizes parameters → GillesPy2 evaluates phenotype
-```
+![Split-Brain Overview](docs/img/split-brain-hero.svg)
 
-The project now supports two experiment presets:
+The project supports two experiment presets:
 
 - `oscillator3`: the original 3-gene traveling-wave oscillator benchmark
 - `robust5`: a 5-gene oscillator benchmark that rewards single-gene knockout robustness
@@ -19,30 +17,7 @@ The project now supports two experiment presets:
 
 ## Architecture
 
-```
-┌───────────────────────────────────┐
-│       OUTER LOOP (Agentic)        │   Proposes circuit topology
-│  random / evolutionary / LLM      │   from bounded experiment grammar
-└──────────────┬────────────────────┘
-               │ topology T
-               ▼
-┌───────────────────────────────────┐
-│       MODEL BUILDER               │   topology + params → GillesPy2 model
-│  Hill-function propensities       │   Adapts parameter vector to edges
-└──────────────┬────────────────────┘
-               │
-               ▼
-┌───────────────────────────────────┐
-│       INNER LOOP (fcmaes)         │   Optimizes continuous kinetic params
-│  DE + pooled evaluator / Bite_cpp │   Handles noisy stochastic objectives
-└──────────────┬────────────────────┘
-               │ best params x*
-               ▼
-┌───────────────────────────────────┐
-│       PHENOTYPE EVALUATOR         │   SSA simulation → oscillation score
-│  Detrending, peak/trough analysis │   Robust across multiple seeds
-└───────────────────────────────────┘
-```
+![Full Architecture](docs/img/full-architecture.svg)
 
 ## Quick Start
 
@@ -94,6 +69,8 @@ python run_search.py --experiment oscillator3 --strategy random --n 5 --inner-ev
 - uses a longer validation pass than `oscillator3` to separate near-ties more aggressively
 - best for testing whether higher-complexity robust designs move beyond the standard 3-gene prior
 
+![robust5 stress panel placeholder](docs/img/robust5-stress-panel.svg)
+
 The inner loop remains unchanged conceptually in both presets: `fcmaes` still solves a single scalar optimization problem for each fixed topology. For `robust5`, the training objective stays cheaper than the validation objective; the more expensive knockdown and parameter-jitter checks are used mainly to rank optimized topologies, not to blow up every inner-loop function call.
 
 ## Relation To CircuiTree
@@ -110,6 +87,8 @@ This repository asks:
 
 That distinction matters. CircuiTree is primarily about topology discovery and motif inference. This repository is primarily an application example for `fcmaes`, so the inner loop is the main character and the outer loop is the structural search wrapper around it.
 
+![CircuiTree vs This Repository](docs/img/circuitree-vs-fcmaes.svg)
+
 ### How CircuiTree Evaluates A Topology
 
 CircuiTree does **not** run an inner continuous optimizer like DE, CMA-ES, or BiteOpt for each topology.
@@ -125,6 +104,23 @@ For the 3-node benchmark, the paper first enumerates the full design space and e
 `Q(s)`, the fraction of random parameter draws that oscillate for topology `s`. During the MCTS benchmark itself, each reward is then drawn as a Bernoulli sample with success probability `Q(s)` rather than by running a fresh inner optimizer.
 
 For the 5-node search, exact enumeration is no longer feasible, so parallel MCTS samples fresh random parameter sets during search and still uses the same yes/no oscillation reward. Fault tolerance is then assessed by repeating this procedure under random deletions, and the paper later studies partial knockdown and parameter heterogeneity on selected top circuits.
+
+In other words, the paper's effective inner evaluation loop is:
+
+1. Sample a parameter vector from a biologically motivated range.
+2. Sample random initial conditions.
+3. Run one stochastic simulation.
+4. Compute `ACFmin` from the normalized autocorrelation function.
+5. Return a binary reward from the threshold test.
+6. Repeat across many random parameter draws to estimate robustness `Q(s)`.
+
+That makes the search target:
+
+- "how often does this topology work under random parameterization?"
+
+rather than:
+
+- "how good can this topology become after tuning?"
 
 ### Why The Paper Uses That Inner Evaluation
 
@@ -153,6 +149,18 @@ For a fixed topology, we optimize a **continuous** scalar objective rather than 
 
 This continuous score is essential because `fcmaes` needs a graded signal. A binary reward would create huge flat regions and make the inner optimization much less informative.
 
+The effective inner loop here is:
+
+1. Fix a topology.
+2. Let `fcmaes` optimize the continuous kinetic parameters for that topology.
+3. For each candidate parameter vector, run stochastic simulations and compute a continuous raw score.
+4. Keep the best parameter vector found by the optimizer.
+5. Re-evaluate that optimized design with stricter validation and stress tests.
+
+So our question is not "is this topology robust under random parameters?" but rather:
+
+- "can this topology be engineered into a strong oscillator, and is that engineered design still stable under perturbation?"
+
 ### How We Push Toward Stable Structures
 
 To avoid selecting topologies that only look good at one lucky operating point, the final ranking is stricter than the raw training objective.
@@ -175,6 +183,27 @@ So "stable" here does not mean "works for a random draw of parameters" in the Ci
 - that point generalizes across stochastic seeds and a longer horizon
 - and it survives structured perturbations instead of collapsing immediately
 
+More concretely, this repository tries to reject four common failure modes:
+
+- **lucky noise**: a single stochastic run happens to look oscillatory
+- **transient oscillation**: the signal oscillates briefly and then damps out
+- **knife-edge tuning**: one optimized point looks good but tiny parameter changes destroy it
+- **fragile structure**: oscillation disappears after single-gene knockout or knockdown
+
+The current evaluator addresses these with:
+
+- multi-seed scoring instead of a single run
+- longer validation horizons than training horizons
+- a train/validation gap penalty
+- lower-quantile aggregation across stress scenarios
+- local parameter jitter around the optimized point
+- for `robust5`, explicit knockout and partial-knockdown panels
+- an autocorrelation-based periodicity term in addition to peak/trough checks
+
+![Stability Funnel](docs/img/stability-funnel.svg)
+
+This is why the score should be read as a stability-aware **optimized-design score**, not as a pure random-parameter robustness probability.
+
 ### Why This Approach Works
 
 This is not a reproduction of the CircuiTree robustness definition. It is a different, more engineering-oriented experiment, and that is intentional.
@@ -186,11 +215,20 @@ The motivation is:
 - a topology should not win only because one random simulation happened to oscillate
 - a tuned design is more convincing if it remains good under seed variation, knockouts, knockdowns, and local parameter perturbations
 
+This makes the project scientifically meaningful in a different way:
+
+- CircuiTree is strong for discovering intrinsic topology motifs under random parameterization.
+- This repository is strong for studying **designability**: how much a topology can be improved by optimization, and how robust that tuned design is in a neighborhood of the optimum.
+
+That distinction is especially relevant once the search space becomes larger. In higher-dimensional topologies, the interesting question is often not only which motifs are intrinsically robust, but also whether a broad class of structures becomes similarly tunable once a powerful inner optimizer is available. That is exactly the kind of question this codebase is built to explore.
+
 In that sense, this repository studies **designability** rather than pure parameter-volume robustness. CircuiTree asks which motifs are intrinsically robust under random parameterization. This repository asks how far a powerful inner optimizer can push a topology, and whether the resulting design is still stable in a neighborhood of the optimum.
 
 ## Agentic Modes
 
 The agentic loop now supports two distinct operating modes:
+
+![Agentic Loop And Archive Memory](docs/img/agentic-loop-memory.svg)
 
 - `blind`: benchmark-oriented mode. Removes canonical motif hints from the system prompt, hides score-based anchoring during the bootstrap phase, and is the better choice when you want to test whether the outer loop can discover strong topologies without being led to the repressilator family.
 - `guided`: application-oriented mode. Keeps biological priors available, uses a short no-score bootstrap phase, then alternates between `explore` and `exploit` turns. Exploration turns enforce a minimum Hamming distance from the current niche-elite archive family to keep the search from orbiting one basin too tightly.
@@ -219,6 +257,8 @@ python run_search.py --experiment robust5 --strategy agentic --agentic-mode blin
 
 The outer loop now keeps two complementary memories:
 
+![Niche Archive](docs/img/niche-archive.svg)
+
 - a global leaderboard of the best overall topologies
 - a niche archive that preserves the best representative for each structural family
 
@@ -238,6 +278,8 @@ During agentic search, the LLM now sees:
 - recent evaluations
 
 That makes the archive more like a lightweight MAP-Elites-style memory for structural diversity, without changing the inner optimizer into a multi-objective or niche-aware search.
+
+![Search Progress](docs/img/search-progress.svg)
 
 ## File Structure
 

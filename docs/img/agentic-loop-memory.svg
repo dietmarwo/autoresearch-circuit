@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 520" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
+  <defs>
+    <filter id="sh" x="-3%" y="-3%" width="106%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+    <marker id="ad" viewBox="0 0 10 10" refX="5" refY="10" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M1,0 L5,10 L9,0" fill="none" stroke="#475569" stroke-width="1.5"/>
+    </marker>
+    <marker id="al" viewBox="0 0 10 10" refX="0" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M10,0 L0,5 L10,10" fill="none" stroke="#475569" stroke-width="1.5"/>
+    </marker>
+  </defs>
+
+  <rect width="720" height="520" rx="12" fill="#fafbfc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="360" y="34" text-anchor="middle" font-size="17" font-weight="700" fill="#1e293b">Agentic Loop + Archive Memory</text>
+  <text x="360" y="54" text-anchor="middle" font-size="11" fill="#94a3b8">How the LLM sees past results and proposes new topologies</text>
+
+  <!-- LLM PROMPT CONTEXT (left column) -->
+  <rect x="40" y="78" width="280" height="250" rx="10" fill="white" stroke="#8b5cf6" stroke-width="2" filter="url(#sh)"/>
+  <rect x="40" y="78" width="280" height="28" rx="10" fill="#8b5cf6"/>
+  <rect x="40" y="98" width="280" height="8" fill="#8b5cf6"/>
+  <text x="180" y="97" text-anchor="middle" font-size="12" font-weight="600" fill="white">LLM PROMPT CONTEXT</text>
+
+  <!-- Context items -->
+  <g transform="translate(60, 120)">
+    <rect x="0" y="0" width="240" height="46" rx="6" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="1"/>
+    <circle cx="20" cy="23" r="10" fill="#8b5cf6" opacity="0.15"/>
+    <text x="20" y="27" text-anchor="middle" font-size="12" fill="#8b5cf6">★</text>
+    <text x="40" y="18" font-size="11" font-weight="600" fill="#4c1d95">Best Overall</text>
+    <text x="40" y="35" font-size="10" fill="#64748b">top-scoring circuits with scores</text>
+  </g>
+  <g transform="translate(60, 176)">
+    <rect x="0" y="0" width="240" height="46" rx="6" fill="#ecfdf5" stroke="#86efac" stroke-width="1"/>
+    <circle cx="20" cy="23" r="10" fill="#10b981" opacity="0.15"/>
+    <text x="20" y="27" text-anchor="middle" font-size="12" fill="#10b981">◆</text>
+    <text x="40" y="18" font-size="11" font-weight="600" fill="#064e3b">Niche Elites</text>
+    <text x="40" y="35" font-size="10" fill="#64748b">best per structural family</text>
+  </g>
+  <g transform="translate(60, 232)">
+    <rect x="0" y="0" width="240" height="46" rx="6" fill="#f0f9ff" stroke="#7dd3fc" stroke-width="1"/>
+    <circle cx="20" cy="23" r="10" fill="#0ea5e9" opacity="0.15"/>
+    <text x="20" y="27" text-anchor="middle" font-size="12" fill="#0ea5e9">⟳</text>
+    <text x="40" y="18" font-size="11" font-weight="600" fill="#0c4a6e">Recent Trials</text>
+    <text x="40" y="35" font-size="10" fill="#64748b">last N evaluations for recency</text>
+  </g>
+
+  <!-- Mode badges -->
+  <g transform="translate(60, 290)">
+    <rect x="0" y="0" width="110" height="22" rx="4" fill="#fef3c7" stroke="#fbbf24" stroke-width="1"/>
+    <text x="55" y="15" text-anchor="middle" font-size="9" font-weight="600" fill="#92400e">blind mode</text>
+  </g>
+  <g transform="translate(180, 290)">
+    <rect x="0" y="0" width="110" height="22" rx="4" fill="#dbeafe" stroke="#60a5fa" stroke-width="1"/>
+    <text x="55" y="15" text-anchor="middle" font-size="9" font-weight="600" fill="#1e40af">guided mode</text>
+  </g>
+
+  <!-- Arrow from context to proposal -->
+  <line x1="320" y1="200" x2="380" y2="200" stroke="#475569" stroke-width="1.5" marker-end="url(#ad)" transform="rotate(0)"/>
+  <!-- Horizontal arrow marker -->
+  <path d="M 320,200 L 376,200" stroke="#475569" stroke-width="1.5"/>
+  <polygon points="380,196 390,200 380,204" fill="#475569"/>
+
+  <!-- RIGHT COLUMN: Pipeline -->
+  <!-- Propose topology -->
+  <rect x="400" y="78" width="280" height="60" rx="8" fill="white" stroke="#6366f1" stroke-width="1.8" filter="url(#sh)"/>
+  <text x="540" y="103" text-anchor="middle" font-size="13" font-weight="600" fill="#312e81">Propose Topology</text>
+  <text x="540" y="123" text-anchor="middle" font-size="10" fill="#64748b">LLM outputs edge vector from grammar</text>
+
+  <line x1="540" y1="138" x2="540" y2="168" stroke="#475569" stroke-width="1.3" marker-end="url(#ad)"/>
+
+  <!-- Optimize -->
+  <rect x="400" y="170" width="280" height="60" rx="8" fill="white" stroke="#0ea5e9" stroke-width="1.8" filter="url(#sh)"/>
+  <text x="540" y="195" text-anchor="middle" font-size="13" font-weight="600" fill="#0c4a6e">Optimize + Validate</text>
+  <text x="540" y="215" text-anchor="middle" font-size="10" fill="#64748b">fcmaes inner loop → stress tests</text>
+
+  <line x1="540" y1="230" x2="540" y2="260" stroke="#475569" stroke-width="1.3" marker-end="url(#ad)"/>
+
+  <!-- Archive Update -->
+  <rect x="400" y="262" width="280" height="80" rx="8" fill="white" stroke="#10b981" stroke-width="1.8" filter="url(#sh)"/>
+  <rect x="400" y="262" width="280" height="26" rx="8" fill="#10b981"/>
+  <rect x="400" y="280" width="280" height="8" fill="#10b981"/>
+  <text x="540" y="280" text-anchor="middle" font-size="12" font-weight="600" fill="white">ARCHIVE UPDATE</text>
+  <text x="440" y="308" font-size="10" fill="#047857" font-weight="500">score</text>
+  <text x="500" y="308" font-size="10" fill="#047857" font-weight="500">gap</text>
+  <text x="550" y="308" font-size="10" fill="#047857" font-weight="500">period</text>
+  <text x="620" y="308" font-size="10" fill="#047857" font-weight="500">niche key</text>
+  <text x="440" y="328" font-size="10" fill="#64748b">rank, stress q25, structural family</text>
+
+  <!-- Feedback loop from archive back to prompt context -->
+  <path d="M 540,342 L 540,400 L 180,400 L 180,328" fill="none" stroke="#475569" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <polygon points="176,332 180,322 184,332" fill="#475569"/>
+  <rect x="290" y="390" width="140" height="20" rx="4" fill="#f8fafc" stroke="#cbd5e1" stroke-width="0.8"/>
+  <text x="360" y="404" text-anchor="middle" font-size="9" fill="#475569" font-style="italic">feeds next prompt context</text>
+
+  <!-- Explore/Exploit badges at bottom -->
+  <g transform="translate(400, 370)">
+    <text x="0" y="0" font-size="10" fill="#64748b">Guided mode alternates:</text>
+    <rect x="0" y="8" width="80" height="20" rx="4" fill="#dbeafe" stroke="#60a5fa" stroke-width="1"/>
+    <text x="40" y="22" text-anchor="middle" font-size="9" font-weight="600" fill="#1e40af">explore</text>
+    <text x="88" y="22" font-size="10" fill="#94a3b8">↔</text>
+    <rect x="98" y="8" width="80" height="20" rx="4" fill="#fce7f3" stroke="#f9a8d4" stroke-width="1"/>
+    <text x="138" y="22" text-anchor="middle" font-size="9" font-weight="600" fill="#9d174d">exploit</text>
+  </g>
+
+  <!-- Annotation: blind note -->
+  <g transform="translate(400, 410)">
+    <text x="0" y="0" font-size="10" fill="#64748b">Blind mode: no canonical motif hints,</text>
+    <text x="0" y="16" font-size="10" fill="#64748b">bootstrap phase hides scores.</text>
+  </g>
+</svg>

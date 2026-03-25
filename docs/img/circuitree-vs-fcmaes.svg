@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
+  <defs>
+    <filter id="sh" x="-3%" y="-3%" width="106%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <rect width="760" height="380" rx="12" fill="#fafbfc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="380" y="36" text-anchor="middle" font-size="17" font-weight="700" fill="#1e293b">CircuiTree  vs  This Repository</text>
+  <text x="380" y="56" text-anchor="middle" font-size="11" fill="#94a3b8">Two complementary ways to evaluate biochemical circuit topologies</text>
+
+  <!-- LEFT: CircuiTree -->
+  <rect x="40" y="76" width="320" height="280" rx="10" fill="white" stroke="#e879f9" stroke-width="2" filter="url(#sh)"/>
+  <rect x="40" y="76" width="320" height="30" rx="10" fill="#d946ef"/>
+  <rect x="40" y="96" width="320" height="10" fill="#d946ef"/>
+  <text x="200" y="97" text-anchor="middle" font-size="14" font-weight="700" fill="white">CircuiTree Paper</text>
+  <text x="200" y="121" text-anchor="middle" font-size="10" fill="#a21caf" font-weight="600">PARAMETER-VOLUME ROBUSTNESS</text>
+
+  <!-- CircuiTree rows -->
+  <g transform="translate(60, 145)">
+    <rect x="0" y="0" width="280" height="36" rx="5" fill="#fdf4ff" stroke="#f0abfc" stroke-width="1"/>
+    <text x="14" y="14" font-size="11" fill="#86198f" font-weight="600">Inner evaluation</text>
+    <text x="14" y="29" font-size="10" fill="#64748b">random parameter draw → single simulation</text>
+  </g>
+  <g transform="translate(60, 191)">
+    <rect x="0" y="0" width="280" height="36" rx="5" fill="#fdf4ff" stroke="#f0abfc" stroke-width="1"/>
+    <text x="14" y="14" font-size="11" fill="#86198f" font-weight="600">Reward signal</text>
+    <text x="14" y="29" font-size="10" fill="#64748b">binary: ACFmin &lt; −0.4  →  1 or 0</text>
+  </g>
+  <g transform="translate(60, 237)">
+    <rect x="0" y="0" width="280" height="36" rx="5" fill="#fdf4ff" stroke="#f0abfc" stroke-width="1"/>
+    <text x="14" y="14" font-size="11" fill="#86198f" font-weight="600">Search target</text>
+    <text x="14" y="29" font-size="10" fill="#64748b">Q(s) = fraction oscillating under random θ</text>
+  </g>
+  <g transform="translate(60, 283)">
+    <rect x="0" y="0" width="280" height="36" rx="5" fill="#fdf4ff" stroke="#f0abfc" stroke-width="1"/>
+    <text x="14" y="14" font-size="11" fill="#86198f" font-weight="600">Strength</text>
+    <text x="14" y="29" font-size="10" fill="#64748b">intrinsic motif discovery, topology robustness</text>
+  </g>
+  <g transform="translate(60, 329)">
+    <text x="140" y="14" text-anchor="middle" font-size="10" fill="#a21caf" font-style="italic">"How often does this topology work?"</text>
+  </g>
+
+  <!-- RIGHT: This Repo -->
+  <rect x="400" y="76" width="320" height="280" rx="10" fill="white" stroke="#0ea5e9" stroke-width="2" filter="url(#sh)"/>
+  <rect x="400" y="76" width="320" height="30" rx="10" fill="#0284c7"/>
+  <rect x="400" y="96" width="320" height="10" fill="#0284c7"/>
+  <text x="560" y="97" text-anchor="middle" font-size="14" font-weight="700" fill="white">This Repository</text>
+  <text x="560" y="121" text-anchor="middle" font-size="10" fill="#0369a1" font-weight="600">OPTIMIZED DESIGNABILITY</text>
+
+  <!-- This repo rows -->
+  <g transform="translate(420, 145)">
+    <rect x="0" y="0" width="280" height="36" rx="5" fill="#f0f9ff" stroke="#7dd3fc" stroke-width="1"/>
+    <text x="14" y="14" font-size="11" fill="#0c4a6e" font-weight="600">Inner evaluation</text>
+    <text x="14" y="29" font-size="10" fill="#64748b">fcmaes optimizes params → multi-seed scoring</text>
+  </g>
+  <g transform="translate(420, 191)">
+    <rect x="0" y="0" width="280" height="36" rx="5" fill="#f0f9ff" stroke="#7dd3fc" stroke-width="1"/>
+    <text x="14" y="14" font-size="11" fill="#0c4a6e" font-weight="600">Reward signal</text>
+    <text x="14" y="29" font-size="10" fill="#64748b">continuous: graded oscillation score [0, 1]</text>
+  </g>
+  <g transform="translate(420, 237)">
+    <rect x="0" y="0" width="280" height="36" rx="5" fill="#f0f9ff" stroke="#7dd3fc" stroke-width="1"/>
+    <text x="14" y="14" font-size="11" fill="#0c4a6e" font-weight="600">Search target</text>
+    <text x="14" y="29" font-size="10" fill="#64748b">best x*(T) after tuning + stress stability</text>
+  </g>
+  <g transform="translate(420, 283)">
+    <rect x="0" y="0" width="280" height="36" rx="5" fill="#f0f9ff" stroke="#7dd3fc" stroke-width="1"/>
+    <text x="14" y="14" font-size="11" fill="#0c4a6e" font-weight="600">Strength</text>
+    <text x="14" y="29" font-size="10" fill="#64748b">engineering-oriented, stress-tested designs</text>
+  </g>
+  <g transform="translate(420, 329)">
+    <text x="140" y="14" text-anchor="middle" font-size="10" fill="#0369a1" font-style="italic">"How good can this topology become?"</text>
+  </g>
+
+  <!-- VS divider -->
+  <circle cx="380" cy="216" r="18" fill="#1e293b"/>
+  <text x="380" y="220" text-anchor="middle" font-size="11" font-weight="700" fill="white">vs</text>
+</svg>
