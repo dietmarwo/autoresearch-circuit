@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autoresearch-circuit"
+version = "0.1.0"
+description = "Split-brain automated design of stochastic biochemical circuits with fcmaes"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+  { name = "OpenAI Codex + project collaborators" },
+]
+dependencies = [
+  "fcmaes",
+  "gillespy2",
+  "loguru",
+  "matplotlib",
+  "numba",
+  "numpy",
+  "scipy",
+  "threadpoolctl",
+]
+
+[project.optional-dependencies]
+llm-openai = [
+  "openai",
+]
+llm-anthropic = [
+  "anthropic",
+]
+llm-gemini = [
+  "google-genai",
+]
+llm = [
+  "openai",
+  "anthropic",
+  "google-genai",
+]
+dev = [
+  "ipython",
+]
+
+[project.scripts]
+run-search = "run_search:main"
+
+[tool.setuptools]
+py-modules = [
+  "agentic_loop",
+  "archive",
+  "config",
+  "evaluator",
+  "grammar",
+  "inner_optimizer",
+  "model_builder",
+  "outer_loop",
+  "run_search",
+  "viz",
+]
