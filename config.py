@@ -102,7 +102,7 @@ ROBUST_SCENARIO_AGGREGATION_QUANTILE = 0.50
 ROBUST_SUCCESS_THRESHOLD = 0.55
 
 # ── Validation-aware ranking ─────────────────────────────
-GENERALIZATION_GAP_PENALTY = 0.5  # rank_score = val_score - penalty * |train - val|
+GENERALIZATION_GAP_PENALTY = 0.25  # rank_score = val_score - penalty * |train - val|
 
 # ── Agentic defaults that may change with experiment ────
 AGENTIC_SEARCH_N = 30
@@ -236,9 +236,9 @@ def set_experiment(name: str) -> str:
         TRACE_PHASE_COHERENCE_WEIGHT = 0.0
         TRACE_SUPPORT_WEIGHT = 0.20
 
-        ROBUST_FULL_WEIGHT = 0.30
-        ROBUST_KNOCKOUT_WEIGHT = 0.20
-        ROBUST_KNOCKOUT_PASS_WEIGHT = 0.10
+        ROBUST_FULL_WEIGHT = 0.20
+        ROBUST_KNOCKOUT_WEIGHT = 0.25
+        ROBUST_KNOCKOUT_PASS_WEIGHT = 0.15
         ROBUST_KNOCKDOWN_WEIGHT = 0.20
         ROBUST_PARAM_PERTURB_WEIGHT = 0.20
         TRAIN_KNOCKOUT_SAMPLES = 2
@@ -247,10 +247,10 @@ def set_experiment(name: str) -> str:
         VALID_KNOCKDOWN_SAMPLES = -1
         KNOCKDOWN_FACTOR = 0.35
         TRAIN_PARAM_PERTURB_SAMPLES = 0
-        VALID_PARAM_PERTURB_SAMPLES = 6
+        VALID_PARAM_PERTURB_SAMPLES = 8
         PARAM_PERTURB_SIGMA = 0.25
         ROBUST_SCENARIO_AGGREGATION_QUANTILE = 0.25
-        ROBUST_SUCCESS_THRESHOLD = 0.90
+        ROBUST_SUCCESS_THRESHOLD = 0.82
 
     return EXPERIMENT
 

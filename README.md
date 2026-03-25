@@ -1,3 +1,5 @@
+![](docs/img/logo.png)
+
 # Circuit Search — Split-Brain Automated Design of Stochastic Biochemical Circuits
 
 A split-brain automated design loop for stochastic biochemical circuits,
