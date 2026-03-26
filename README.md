@@ -298,7 +298,7 @@ This is closest to:
 `fcmaes` tends to shine when:
 
 - each fixed topology still has a large, expressive continuous parameter space
-- the objective can provide a smooth or at least graded optimization signal
+- the objective provides an informative graded ranking signal, even if it is noisy, rugged, and non-differentiable
 - many topologies are potentially salvageable by good tuning
 - local robustness around an optimum matters more than random-parameter success rate
 
