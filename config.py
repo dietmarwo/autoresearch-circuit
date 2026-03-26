@@ -117,9 +117,9 @@ LLM_RECENT_K = 10
 # ── LLM backend defaults ─────────────────────────────────
 LLM_BACKEND = "auto"            # auto / openai / claude / gemini / minimax
 LLM_BASE_URL = None             # OpenAI-compatible endpoint; None -> provider default
-LLM_MODEL = "claude-sonnet-4-20250514"
+LLM_MODEL = None
 LLM_TEMPERATURE = 1.0
-LLM_THINKING_EFFORT = "none"    # none / high
+LLM_THINKING_EFFORT = "high"    # none / high
 LLM_MAX_TOKENS = 8192
 LLM_MAX_CONTEXT_EXCHANGES = 2
 LLM_EXCHANGE_MAX_CHARS = 2000
