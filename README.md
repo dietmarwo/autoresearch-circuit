@@ -226,6 +226,107 @@ That distinction is especially relevant once the search space becomes larger. In
 
 In that sense, this repository studies **designability** rather than pure parameter-volume robustness. CircuiTree asks which motifs are intrinsically robust under random parameterization. This repository asks how far a powerful inner optimizer can push a topology, and whether the resulting design is still stable in a neighborhood of the optimum.
 
+## Preliminary Findings
+
+The results in this repository should currently be read as **preliminary**. They are already informative, but they are not yet a final benchmark study with many repeated runs per method.
+
+### What We See So Far
+
+For `oscillator3`, the search remains strongly topology-sensitive.
+
+- Known small motifs such as repressilator- and Goodwin-like structures are repeatedly recovered.
+- If we explicitly seed the agent with those motifs, the outer loop can solve the task almost immediately.
+- Blind agentic mode is therefore the more meaningful benchmark setting for `oscillator3`.
+
+For `robust5`, the picture is different.
+
+- Under the current optimized-design objective, many 5-gene topologies can be tuned by `fcmaes` into similarly strong solutions.
+- After tightening the validation and stress tests, the score distribution widened enough to reveal structure, but the top of the landscape is still comparatively flat.
+- In direct comparisons, blind agentic search and random search often reach extremely similar top scores.
+- Random search currently tends to cover more niches, while blind agentic search tends to focus faster on one strong family.
+
+That means the current `robust5` results are consistent with a hypothesis that is quite interesting:
+
+- the 5-gene task, under strong continuous optimization, may be more **inner-loop dominated**
+- while the minimal 3-gene task is more **outer-loop / topology dominated**
+
+### Comparison With CircuiTree / MCTS
+
+This does **not** mean the CircuiTree `N=5` results were wrong. It means the two projects answer different questions.
+
+CircuiTree `N=5`:
+
+- no inner continuous optimizer
+- random parameter draws
+- binary autocorrelation reward
+- measures intrinsic robustness of topology under random parameterization and deletion
+
+This repository `robust5`:
+
+- strong inner continuous optimization with `fcmaes`
+- continuous training objective
+- validation with seeds, knockout, knockdown, and local parameter jitter
+- measures optimized designability and local robustness around an engineered operating point
+
+So the current comparison suggests a potentially important distinction:
+
+- a topology can be highly informative under **random-parameter robustness**
+- yet many more topologies may become competitive under **optimized designability**
+
+If that distinction continues to hold in larger replicated studies, then the right conclusion is not that MCTS-based topology search was unnecessary, but that:
+
+- intrinsic robustness and optimized tunability are different properties
+
+### What This Means For Agents And `fcmaes`
+
+The outer agent and the inner optimizer are useful in different regimes.
+
+Agents tend to shine when:
+
+- the search space is strongly topology-dominated
+- biological or structural priors are informative
+- partial progress can be summarized and reused
+- diversity management and niche exploration matter
+- evaluation is so expensive that proposing better topologies is worth more than polishing many mediocre ones
+
+This is closest to:
+
+- small or medium circuit topologies
+- motif discovery problems
+- constructive search problems closer to CircuiTree's assembly-tree formulation
+
+`fcmaes` tends to shine when:
+
+- each fixed topology still has a large, expressive continuous parameter space
+- the objective can provide a smooth or at least graded optimization signal
+- many topologies are potentially salvageable by good tuning
+- local robustness around an optimum matters more than random-parameter success rate
+
+This is closest to:
+
+- higher-dimensional circuit families
+- engineering-oriented design tasks
+- situations where "can this topology be tuned into a good design?" matters more than "does it work often without tuning?"
+
+### Working Interpretation
+
+The current working interpretation is:
+
+- `oscillator3`: outer-loop reasoning still matters a lot
+- `robust5`: inner-loop optimization may dominate more than expected
+
+If this continues to hold, then the practical lesson is:
+
+- use agents to generate structure when the search is genuinely combinatorial and motif-sensitive
+- use `fcmaes` aggressively when the main difficulty is finding a strong operating point inside a rich continuous parameter space
+
+In other words:
+
+- agents are best for **where to search**
+- `fcmaes` is best for **how far a candidate can be pushed once chosen**
+
+That split-brain division remains the central hypothesis of this project.
+
 ## Agentic Modes
 
 The agentic loop now supports two distinct operating modes:
