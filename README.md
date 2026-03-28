@@ -11,6 +11,44 @@ by Pranav S. Bhamidipati and Matthew Thomson.
 
 ![Split-Brain Overview](docs/img/split-brain-hero.svg)
 
+## The Core Idea: Splitting the Brain
+
+If you ask a language model to design a biochemical circuit end to end, it usually mixes up two very different problems. It may come up with an interesting topology, but then guess poor kinetic parameters and conclude that the whole idea failed.
+
+That is the same failure mode addressed in the trading sister project
+[`autoresearch-trading`](https://github.com/dietmarwo/autoresearch-trading): the model is good at proposing structure, but weak at guessing continuous numbers. In trading those numbers are thresholds and weights. Here they are production rates, degradation rates, Hill constants, cooperativity terms, and other kinetic parameters.
+
+This repository fixes that by splitting the job in half so each component does what it is best at:
+
+1. The outer loop handles structural design. It proposes a circuit topology: which genes regulate which other genes, with activation or inhibition, under the grammar constraints of the benchmark.
+2. The inner loop handles continuous optimization. For every fixed topology, `fcmaes` searches the kinetic parameter space and finds the strongest operating point it can.
+3. The simulator and validator handle reality checks. GillesPy2 runs the stochastic model, the evaluator scores oscillation quality, and the final validation pass applies stricter seed, knockout, knockdown, and parameter-jitter tests.
+
+This separation matters because it gives the outer loop a much cleaner learning signal. A bad final score is much less likely to mean "the topology was good but the guessed rates were bad." Instead, the structural search gets feedback that is closer to the real engineering question: can this topology, once tuned properly, become a strong and stable stochastic oscillator?
+
+The result is the biochemical-circuit analogue of `autoresearch-trading`: the outer loop proposes structure, `fcmaes` tunes the numbers, the simulator scores the design, and the loop repeats.
+
+## Where else does this work?
+
+The split-brain pattern is broader than either trading or biochemical circuits. It works whenever there is a clean boundary between discrete design choices and continuous parameter tuning, and whenever a simulator can tell us how good the result is.
+
+This repository is the biochemical-circuit sister example, while
+[`autoresearch-trading`](https://github.com/dietmarwo/autoresearch-trading) is the trading one. In both cases, the architecture is the same:
+
+- propose structure with an outer search
+- optimize continuous parameters with `fcmaes`
+- validate in a domain simulator
+
+That same pattern also fits several neighboring scientific and engineering problems:
+
+- Synthetic biology beyond oscillators: propose feedback topologies, sensor wiring, or resource-sharing motifs; then tune kinetic constants to maximize switching sharpness, adaptation, or robustness.
+- Metabolic engineering: propose pathway additions, enzyme-control structure, or regulation logic; then optimize expression levels, catalytic rates, and transport parameters against a flux or yield simulator.
+- Bioprocess control: propose staged feeding or induction policies; then optimize continuous timing, dosage, and controller gains in a fermentation model.
+- Robotics and control: propose a controller structure or behavior tree; then tune gains, timing constants, and trajectory parameters in a physics simulator.
+- Trading, as in the sister project: propose the strategy logic; then optimize thresholds, weights, and risk parameters against a market backtest.
+
+Any time the hard part is partly combinatorial and partly continuous, this architecture is a strong fit. The outer loop explores what to build. The inner optimizer figures out how far that design can be pushed.
+
 The project supports two experiment presets:
 
 - `oscillator3`: the original 3-gene traveling-wave oscillator benchmark
