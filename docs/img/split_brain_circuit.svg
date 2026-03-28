@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" width="100%" height="100%">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#f4f4f4" stroke-width="1"/>
+    </pattern>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,1 L0,9 L9,5 z" fill="#007acc" />
+    </marker>
+    <marker id="arrow-orange" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,1 L0,9 L9,5 z" fill="#d97706" />
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,1 L0,9 L9,5 z" fill="#16a34a" />
+    </marker>
+    
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="2" dy="4" stdDeviation="4" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <rect width="800" height="480" fill="#ffffff" rx="10"/>
+  <rect width="800" height="480" fill="url(#grid)" rx="10"/>
+  
+  <text x="400" y="45" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#24292f">Split-Brain Architecture</text>
+  
+  <rect x="60" y="90" width="280" height="190" rx="12" fill="#f0f8ff" stroke="#007acc" stroke-width="2" filter="url(#shadow)"/>
+  <text x="200" y="125" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="#005a99">Outer Loop (AI Agent)</text>
+  <text x="200" y="150" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15" font-weight="600" text-anchor="middle" fill="#24292f">Structural Design</text>
+  
+  <text x="80" y="180" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" fill="#57606a">• Proposes circuit topology</text>
+  <text x="80" y="205" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" fill="#57606a">• Defines gene regulation logic</text>
+  <text x="80" y="230" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" fill="#57606a">• Activation &amp; inhibition</text>
+  <text x="80" y="255" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" fill="#57606a">• Follows grammar constraints</text>
+
+  <rect x="460" y="90" width="280" height="190" rx="12" fill="#fffaf0" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
+  <text x="600" y="125" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="#b45309">Inner Loop (fcmaes)</text>
+  <text x="600" y="150" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15" font-weight="600" text-anchor="middle" fill="#24292f">Continuous Optimization</text>
+  
+  <text x="480" y="180" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" fill="#57606a">• Searches kinetic parameters</text>
+  <text x="480" y="205" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" fill="#57606a">• Production / degradation rates</text>
+  <text x="480" y="230" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" fill="#57606a">• Tunes Hill constants</text>
+  <text x="480" y="255" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" fill="#57606a">• Finds strongest operating point</text>
+
+  <rect x="150" y="340" width="500" height="110" rx="12" fill="#f0fff4" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
+  <text x="400" y="375" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="#15803d">Simulator &amp; Validator (GillesPy2)</text>
+  <text x="400" y="400" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15" font-weight="600" text-anchor="middle" fill="#24292f">Reality Checks</text>
+  
+  <text x="400" y="425" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" text-anchor="middle" fill="#57606a">Runs stochastic model | Scores oscillation | Knockout &amp; stress tests</text>
+
+  <path d="M 340 185 L 445 185" fill="none" stroke="#007acc" stroke-width="3" marker-end="url(#arrow-blue)"/>
+  <rect x="330" y="160" width="140" height="20" fill="#ffffff" rx="4" opacity="0.8"/>
+  <text x="400" y="175" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="600" text-anchor="middle" fill="#005a99">Fixed Topology</text>
+
+  <path d="M 600 280 L 600 330" fill="none" stroke="#d97706" stroke-width="3" marker-end="url(#arrow-orange)"/>
+  <rect x="525" y="295" width="150" height="20" fill="#ffffff" rx="4" opacity="0.9"/>
+  <text x="600" y="310" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="600" text-anchor="middle" fill="#b45309">Optimized Parameters</text>
+
+  <path d="M 200 340 L 200 290" fill="none" stroke="#16a34a" stroke-width="3" marker-end="url(#arrow-green)"/>
+  <rect x="150" y="300" width="100" height="20" fill="#ffffff" rx="4" opacity="0.9"/>
+  <text x="200" y="315" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="600" text-anchor="middle" fill="#15803d">Final Score</text>
+
+</svg>

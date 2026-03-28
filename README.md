@@ -18,6 +18,8 @@ If you ask a language model to design a biochemical circuit end to end, it usual
 That is the same failure mode addressed in the trading sister project
 [`autoresearch-trading`](https://github.com/dietmarwo/autoresearch-trading): the model is good at proposing structure, but weak at guessing continuous numbers. In trading those numbers are thresholds and weights. Here they are production rates, degradation rates, Hill constants, cooperativity terms, and other kinetic parameters.
 
+![Split-Brain Architecture](docs/img/split_brain_circuit.svg)
+
 This repository fixes that by splitting the job in half so each component does what it is best at:
 
 1. The outer loop handles structural design. It proposes a circuit topology: which genes regulate which other genes, with activation or inhibition, under the grammar constraints of the benchmark.
