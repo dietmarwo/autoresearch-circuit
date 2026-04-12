@@ -274,6 +274,13 @@ def optimize_topology(topology: Topology,
         )
         evaluator = _ensure_fcmaes_evaluator(objective, key, n_workers)
         es = fcmaes.de.DE(len(lower), retry.Bounds(lower, upper), keep=20, popsize=n_workers)
+        # alternatively, since fcmaes 2.0.2 you can apply Biteopt with ask / tell interface 
+        # es = fcmaes.bitecpp.Bite_C(
+        #    len(lower),
+        #    retry.Bounds(lower, upper),
+        #    batch_size=n_workers,
+        #    max_evaluations=max_evals,
+        # )       
         eval_batches = 0
         for _ in range(max(1, max_evals // n_workers)):
             xs = es.ask()
