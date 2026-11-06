@@ -2,6 +2,8 @@
 
 # Circuit Search — Split-Brain Automated Design of Stochastic Biochemical Circuits
 
+> **One of 18 related repositories.** The [repository overview](https://github.com/dietmarwo/fcmaes-rust/blob/main/docs/repositories.md) shows what each one does and how they connect.
+
 A split-brain automated design loop for stochastic biochemical circuits,
 showcasing `fcmaes` as the inner optimization engine.
 
