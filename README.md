@@ -66,7 +66,8 @@ The project supports two experiment presets:
 ## Quick Start
 
 ```bash
-pip install fcmaes gillespy2 numpy scipy matplotlib
+pip install -e .          # fcmaes, gillespy2, numpy, scipy, matplotlib, loguru, numba, threadpoolctl
+pip install -e ".[llm]"   # optional: openai, anthropic and google-genai for the agentic strategy
 
 # Random search (baseline) — 30 topologies
 python run_search.py --experiment oscillator3 --strategy random --n 30
@@ -74,7 +75,9 @@ python run_search.py --experiment oscillator3 --strategy random --n 30
 # Evolutionary (1+1)-ES — 50 iterations
 python run_search.py --experiment oscillator3 --strategy evo --n 50
 
-# LLM-guided agentic search (requires ANTHROPIC_API_KEY)
+# LLM-guided agentic search. Without --llm-backend or --model it uses an OpenAI-compatible
+# API (OPENAI_API_KEY, or --base-url for a local server); --llm-backend claude needs
+# ANTHROPIC_API_KEY, minimax MINIMAX_API_KEY, gemini GEMINI_API_KEY or GOOGLE_API_KEY
 python run_search.py --experiment oscillator3 --strategy agentic --n 20
 
 # Blind benchmark mode: no canonical motif hints, bootstrap before exploitation
@@ -430,16 +433,16 @@ That makes the archive more like a lightweight MAP-Elites-style memory for struc
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `config.py` | 81 | All hyperparameters in one place |
-| `grammar.py` | 160 | 3-gene topology grammar, encoding, mutation, canonical motifs |
-| `model_builder.py` | 184 | Topology + params → GillesPy2 model with Hill-function propensities |
-| `evaluator.py` | 228 | Oscillation quality scoring: detrending, peak/trough analysis, multi-seed |
-| `inner_optimizer.py` | 119 | fcmaes wrapper: DE with pooled evaluator, Bite_cpp fallback |
-| `outer_loop.py` | 163 | Random search + evolutionary (1+1)-ES strategies |
-| `agentic_loop.py` | 266 | LLM-guided topology proposal with structured feedback |
-| `archive.py` | 121 | Results storage, ranking, JSON/pickle serialisation |
-| `viz.py` | 237 | Trace plots, network diagrams, score progression charts |
-| `run_search.py` | 146 | CLI entry point |
+| `config.py` | 259 | All hyperparameters and experiment presets in one place |
+| `grammar.py` | 236 | Topology grammar for the active experiment's genes, encoding, mutation, canonical motifs |
+| `model_builder.py` | 209 | Topology + params → GillesPy2 model with Hill-function propensities |
+| `evaluator.py` | 1030 | Oscillation quality scoring: detrending, peak/trough analysis, multi-seed |
+| `inner_optimizer.py` | 417 | fcmaes wrapper: DE with pooled evaluator, Bite_cpp fallback |
+| `outer_loop.py` | 276 | Random search + evolutionary (1+1)-ES strategies |
+| `agentic_loop.py` | 1326 | LLM-guided topology proposal with structured feedback |
+| `archive.py` | 380 | Results storage, ranking, JSON/pickle serialisation |
+| `viz.py` | 236 | Trace plots, network diagrams, score progression charts |
+| `run_search.py` | 267 | CLI entry point |
 
 ## Topology Grammar
 
@@ -484,8 +487,10 @@ For the 5-gene robust experiment, the scalar objective also includes:
 - `fcmaes` — fast gradient-free optimization (C++/Eigen backend)
 - `gillespy2` — stochastic simulation (SSA)
 - `numpy`, `scipy` — numerics, peak detection
+- `numba` — faster trace post-processing (the evaluator falls back to NumPy without it)
+- `loguru`, `threadpoolctl` — logging and BLAS thread limits in the inner optimizer
 - `matplotlib` — plotting
-- `anthropic` — (optional) for agentic loop
+- `openai`, `anthropic`, `google-genai` — (optional, extras `llm-openai`, `llm-anthropic`, `llm-gemini` or `llm`) for the agentic loop's backends
 
 ## Context
 
